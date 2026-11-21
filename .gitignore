@@ -1,0 +1,7 @@
+# Repository-local planning, workspaces, and generated output
+/.local-work/
+/.tmp/
+/local/
+/artifacts/
+/.project-workflow/
+/.codex/

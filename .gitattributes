@@ -1,0 +1,15 @@
+# Normalize repository text; working copies use Windows line endings.
+* text=auto
+*.md text eol=crlf
+*.ps1 text eol=crlf
+*.psm1 text eol=crlf
+*.psd1 text eol=crlf
+*.scl text eol=crlf
+*.xml text eol=crlf
+*.json text eol=crlf
+*.yaml text eol=crlf
+*.yml text eol=crlf
+.gitignore text eol=crlf
+.gitattributes text eol=crlf
+
+# Add Git LFS rules only for explicitly agreed product paths.

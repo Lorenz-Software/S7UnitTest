@@ -188,4 +188,4 @@ frameworks and tools. [Become a sponsor](https://github.com/sponsors/Lorenz-Soft
 ## License
 
 Created by [Lorenz Software](https://www.lorenz-software.solutions/) and available
-under the [MIT license](LICENSE). Contact: [mail@lorenz-software.net](mailto:mail@lorenz-software.net).
+under the [MIT license](LICENSE).

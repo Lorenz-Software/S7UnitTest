@@ -36,7 +36,7 @@ Master-copy delivery does not relax the PLC/PC contract. Preserve the required D
 
 Use [Run Control](authoring/run-control.md), [Test Suites](authoring/test-suite.md) and [Test Cases](authoring/test-case.md) for the concrete application binding. The delivered integration scaffolds are editable examples, not a ready-wired application.
 
-The `inventory.json` supplied with each framework release records the objects delivered in that library. For component versions and artifact checksums, use the metadata accompanying the corresponding release downloads. Preserve the required names, structures and behavior defined in the [contracts](../contracts/README.md).
+The [inventory.json](https://github.com/Lorenz-Software/S7UnitTest/releases/download/v2.0.0/inventory.json) supplied with each framework release records the objects delivered in that library. For component versions and artifact checksums, use the metadata accompanying the corresponding release downloads. Preserve the required names, structures and behavior defined in the [contracts](../contracts/README.md).
 
 ## Language And Help
 

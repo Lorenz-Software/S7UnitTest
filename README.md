@@ -157,14 +157,15 @@ The package bundles the matching Authoring Guides, contracts, API catalogs,
 templates, and general SCL guidance. You review the proposed expectations and
 resulting tests; no separately installed Engineering skill is required.
 
-[Authoring skill](skills/s7unittest-framework-authoring/SKILL.md)
+[Download the skill](https://github.com/Lorenz-Software/S7UnitTest/releases/tag/authoring-skill-v1.1.1)
+· [Authoring skill](skills/s7unittest-framework-authoring/SKILL.md)
 · [Installation and compatibility](docs/authoring/ai-assisted-framework-authoring.md#installation-and-compatibility)
 
 ## Project Status
 
-- **Framework baseline:** `2.0.0`; the first GitHub release is being prepared.
-- **Downloads:** native library `.zal21`, offline HTML help, and the standalone skill ZIP are distributed as release assets; they are not stored in Git.
-- **Authoring skill:** `1.1.1`, with exact framework compatibility and a complete standalone resource set. Public packaging is being prepared.
+- **Release:** [2.0.0](https://github.com/Lorenz-Software/S7UnitTest/releases/tag/v2.0.0).
+- **Downloads:** [native library (.zal21)](https://github.com/Lorenz-Software/S7UnitTest/releases/download/v2.0.0/UnitTest.zal21), [offline HTML help](https://github.com/Lorenz-Software/S7UnitTest/releases/download/v2.0.0/s7-unittest-api-2.0.0.zip), and [object inventory](https://github.com/Lorenz-Software/S7UnitTest/releases/download/v2.0.0/inventory.json) are available with the framework release.
+- **Authoring skill:** [1.1.1](https://github.com/Lorenz-Software/S7UnitTest/releases/tag/authoring-skill-v1.1.1), with exact framework compatibility and a complete standalone resource set.
 - **Source:** the [TIA project archive](Project/S7_UnitTest.zap21), stored through Git LFS, contains framework implementation and Self-Tests. Use TIA Portal V21 to retrieve it.
 - **Library integration:** reusable mastercopies and editable examples; copy the required objects and dependencies, configure the application, and create its instances. See [Library Usage](docs/library-usage.md).
 - **Execution scope:** standard non-fail-safe PLC logic in PLCSIM Advanced. F-block testing and functional-safety validation or certification are outside the supported scope. See [Project Use](docs/project-use.md) and [Self-Test coverage](docs/selftest-coverage.md).

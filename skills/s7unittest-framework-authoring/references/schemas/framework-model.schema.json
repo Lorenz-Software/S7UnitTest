@@ -1,0 +1,338 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://s7unittest.local/schemas/framework-model.schema.json",
+  "title": "S7 UnitTest framework model",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "skillVersion",
+    "frameworkVersion",
+    "contractVersions",
+    "levels",
+    "executionPatterns",
+    "lifecycleStates",
+    "results",
+    "concepts"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "$ref": "#/$defs/version"
+    },
+    "skillVersion": {
+      "$ref": "#/$defs/version"
+    },
+    "frameworkVersion": {
+      "$ref": "#/$defs/version"
+    },
+    "contractVersions": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "$ref": "#/$defs/version"
+      }
+    },
+    "levels": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/level"
+      }
+    },
+    "executionPatterns": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/executionPattern"
+      }
+    },
+    "lifecycleStates": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/lifecycleState"
+      }
+    },
+    "results": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/result"
+      }
+    },
+    "concepts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/concept"
+      }
+    }
+  },
+  "$defs": {
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "requirementId": {
+      "type": "string",
+      "pattern": "^[A-Z]+-[0-9]{3}$"
+    },
+    "levelId": {
+      "enum": [
+        "run-control",
+        "test-suite",
+        "test-case",
+        "preparation",
+        "assertion"
+      ]
+    },
+    "level": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "purpose",
+        "owns",
+        "publishes"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/levelId"
+        },
+        "purpose": {
+          "type": "string",
+          "minLength": 1
+        },
+        "parent": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/levelId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "children": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/levelId"
+          }
+        },
+        "owns": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "publishes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "contractRequirements": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/requirementId"
+          }
+        }
+      }
+    },
+    "executionPattern": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "level",
+        "support",
+        "purpose",
+        "authorResponsibilities"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+$"
+        },
+        "level": {
+          "$ref": "#/$defs/levelId"
+        },
+        "support": {
+          "enum": [
+            "preferred",
+            "supported"
+          ]
+        },
+        "purpose": {
+          "type": "string",
+          "minLength": 1
+        },
+        "frameworkBlocks": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "authorResponsibilities": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "contractRequirements": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/requirementId"
+          }
+        }
+      }
+    },
+    "lifecycleState": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "role",
+        "stableFinal",
+        "purpose"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^UnitTest\\.State\\.[A-Za-z0-9]+$"
+        },
+        "role": {
+          "enum": [
+            "initial",
+            "reset",
+            "idle",
+            "starting",
+            "preparing",
+            "testing",
+            "finalizing",
+            "completed",
+            "aborting",
+            "error-aborting",
+            "legacy"
+          ]
+        },
+        "stableFinal": {
+          "type": "boolean"
+        },
+        "purpose": {
+          "type": "string",
+          "minLength": 1
+        },
+        "executionStatus": {
+          "type": "string",
+          "pattern": "^UnitTest\\.ExecutionStatus\\.[A-Za-z0-9]+$"
+        }
+      }
+    },
+    "result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "classification",
+        "purpose"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^UnitTest\\.Result\\.[A-Za-z0-9]+$"
+        },
+        "classification": {
+          "enum": [
+            "unevaluated",
+            "success",
+            "test-failure",
+            "explicit-abort",
+            "error"
+          ]
+        },
+        "purpose": {
+          "type": "string",
+          "minLength": 1
+        },
+        "mayEscalateTo": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^UnitTest\\.Result\\.[A-Za-z0-9]+$"
+          }
+        }
+      }
+    },
+    "concept": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "category",
+        "summary",
+        "rules"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+$"
+        },
+        "category": {
+          "enum": [
+            "ownership",
+            "naming",
+            "configuration",
+            "commands",
+            "lifecycle",
+            "signals",
+            "runtime",
+            "timeout",
+            "result",
+            "event",
+            "status",
+            "call-order"
+          ]
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "appliesTo": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/levelId"
+          }
+        },
+        "rules": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "contractRequirements": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/requirementId"
+          }
+        }
+      }
+    }
+  }
+}

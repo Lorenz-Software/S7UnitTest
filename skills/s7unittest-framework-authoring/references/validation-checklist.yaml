@@ -1,0 +1,514 @@
+schemaVersion: "1.0.0"
+skillVersion: "1.1.1"
+frameworkVersion: "2.0.0"
+contractVersions:
+  general-framework-contract: "1.0.0"
+  run-control-contract: "1.0.0"
+  test-suite-contract: "1.0.0"
+  test-case-contract: "1.0.0"
+  event-stream-model-contract: "1.0.0"
+
+rules:
+  - id: SKILL-001
+    severity: error
+    scope:
+      - catalog
+    checkType: automated
+    requirement: Every machine-readable reference document shall validate against its dedicated JSON Schema.
+    rationale: Invalid reference data cannot be consumed deterministically.
+
+  - id: SKILL-002
+    severity: error
+    scope:
+      - catalog
+    checkType: automated
+    requirement: Framework and contract versions shall match across all machine-readable reference documents.
+    rationale: A skill package must describe one explicit compatibility set.
+
+  - id: SKILL-003
+    severity: error
+    scope:
+      - catalog
+    checkType: automated
+    requirement: Every cataloged source path shall exist and declare the cataloged block name and block type.
+    rationale: Stale catalog entries would generate calls to unavailable framework blocks.
+
+  - id: SKILL-004
+    severity: error
+    scope:
+      - assertion
+      - catalog
+    checkType: automated
+    requirement: Every framework Assertion source shall be classified as a public Assertion or an explicitly excluded internal block.
+    rationale: The Assertion catalog must remain complete as an authoring selection guide.
+
+  - id: SKILL-005
+    severity: error
+    scope:
+      - catalog
+    checkType: automated
+    requirement: Every non-example framework SCL source shall be classified as a public block, public Assertion, or explicitly excluded internal block.
+    rationale: New or removed framework blocks must cause a catalog review.
+
+  - id: SKILL-006
+    severity: error
+    scope:
+      - catalog
+    checkType: automated
+    requirement: Catalog block names and source paths shall be unique across public and internal classifications.
+    rationale: Ambiguous catalog identities prevent deterministic block selection.
+
+  - id: SKILL-007
+    severity: error
+    scope:
+      - catalog
+    checkType: automated
+    requirement: Every referenced contract requirement ID shall exist in the repository contracts.
+    rationale: Requirement links must remain stable and resolvable.
+
+  - id: SKILL-008
+    severity: error
+    scope:
+      - catalog
+    checkType: automated
+    requirement: Every framework block referenced by an execution pattern shall exist in the public block catalog.
+    rationale: Execution-pattern guidance must only select available Authoring API blocks.
+
+  - id: SKILL-009
+    severity: error
+    scope:
+      - assertion
+      - catalog
+    checkType: automated
+    requirement: Every Assertion distinction reference shall resolve to another cataloged Assertion.
+    rationale: Assertion selection guidance must not reference removed families.
+
+  - id: SKILL-010
+    severity: error
+    scope:
+      - template
+    checkType: automated
+    requirement: Every framework call used by a template shall resolve to a public catalog entry and shall not use an internal block.
+    rationale: Templates must not expose implementation internals or unavailable helpers.
+
+  - id: SKILL-011
+    severity: error
+    scope:
+      - template
+    checkType: automated
+    requirement: Every named parameter used by a template framework call shall exist in the cataloged block interface.
+    rationale: Interface drift must be detected before a template is released.
+
+  - id: SKILL-012
+    severity: error
+    scope:
+      - run-control
+      - test-suite
+      - test-case
+    checkType: semantic
+    requirement: The execution pattern shall be selected from explicit ordering, concurrency, and resource-ownership constraints.
+    rationale: Parallel safety must not be inferred.
+
+  - id: SKILL-013
+    severity: warning
+    scope:
+      - run-control
+      - test-suite
+      - test-case
+    checkType: structural
+    requirement: Prefer the applicable framework Sequencer and Orchestrator unless a direct lifecycle implementation is deliberately required.
+    rationale: Generic helpers provide the preferred and least repetitive authoring path.
+
+  - id: SKILL-014
+    severity: error
+    scope:
+      - run-control
+      - test-suite
+      - test-case
+    checkType: semantic
+    requirement: Generated owner and Assertion event names shall follow the framework hierarchy and local naming conventions. Check complete assembled names including actual parent prefixes, separators and local suffixes against the matching contract length limit; check ResourceName against its separate limit. Establish supported bounds for varying bindings. Do not infer suffix validity from owner-name validation, truncate names to fit or merge identities.
+    rationale: Correct local segments can form an overlong or ambiguous complete identity, preventing reliable hierarchy and finding attribution.
+
+  - id: SKILL-015
+    severity: error
+    scope:
+      - run-control
+      - test-suite
+      - test-case
+    checkType: structural
+    requirement: Configuration status and lifecycle signals shall be prepared before the selected Sequencer or Orchestrator is called. Composed Run Control and Suite owners pass initialized persistent OrchestratorState and OrchestratorResult from the same preceding helper call to the Sequencer, then refresh those fields in the later Orchestrator call; shared child lifecycle signals remain independent of helper completion.
+    rationale: Generic lifecycle blocks require deterministic current-cycle control inputs.
+
+  - id: SKILL-016
+    severity: error
+    scope:
+      - run-control
+      - test-suite
+      - test-case
+    checkType: structural
+    requirement: Results and status shall be consolidated after subordinate calls and before finalization-event handling. Regular Run Control and Suite completion requires completed children and helper Completed; functional child Failed is aggregated by the owner, whose published result remains held through Completing and Completed until Reset. Reset, Abort, error and timeout paths retain their separate completion conditions.
+    rationale: Published completion data must represent the completed current-cycle processing.
+
+  - id: SKILL-017
+    severity: error
+    scope:
+      - test-case
+      - assertion
+    checkType: semantic
+    requirement: Assertions shall reset only in UnitTest.State.Reset; observation, first-cycle inclusion, and explicit evaluation shall match the selected Assertion interface, external call order, and supplied test intent.
+    rationale: Assertion state, result stability, and first-cycle correctness depend on separating observation enablement from explicit evaluation.
+
+  - id: SKILL-018
+    severity: error
+    scope:
+      - run-control
+      - test-suite
+      - test-case
+      - preparation
+    checkType: manual-review
+    requirement: Generated framework structure shall trace expectations and acceptance criteria to accepted requirements, owner decisions, or accepted characterization; derived stimuli and timing shall remain within that agreed intent, with material ambiguities resolved before implementation. Review the stated/agreed purpose, setup, intervention, call/sample sequence and expected observation together before classifying normal operation, deliberate invalid/fault stimulation or a protected invariant. Intentional violation of a normal condition to check a supported error response and source-obvious invariants are not defects by themselves. Intention alone does not justify unsupported Expected values or waive framework/fixture/access constraints. A confirmed finding needs a concrete contradiction and consequence; distinguish unresolved facts and optional optimizations, preserve agreed scope and do not ask for reconfirmation of already clear intent.
+    rationale: Source-based test design is supported, but observed implementation and unresolved hypotheses do not define intended correctness.
+
+  - id: SKILL-019
+    severity: error
+    scope:
+      - preparation
+    checkType: semantic
+    requirement: A generated Preparation shall be classified as generally reusable, resource-family, or dedicated and shall implement one coherent target-condition behavior.
+    rationale: Reuse must not create mode-selected blocks with unrelated preparation behavior.
+
+  - id: SKILL-020
+    severity: error
+    scope:
+      - preparation
+    checkType: structural
+    requirement: A generated Preparation shall use Enable and UDT_UnitTestPreparationStatus as its framework interface and shall keep writable stimulus or resource data on in-out parameters by default.
+    rationale: The standard interface and visible write ownership keep Test Case integration deterministic.
+
+  - id: SKILL-021
+    severity: error
+    scope:
+      - preparation
+    checkType: semantic
+    requirement: DUT and resource UDTs shall not be modified for UnitTest needs; any Preparation interface UDT shall group coherent signals and match the selected reuse scope.
+    rationale: UnitTest authoring must preserve production interfaces and avoid test-specific parameter containers.
+
+  - id: SKILL-022
+    severity: error
+    scope:
+      - preparation
+    checkType: semantic
+    requirement: A generated Preparation shall handle every expected normal resource state and shall use Error only for exceptional states that cannot converge to the target meaningfully.
+    rationale: Preparation must establish a deterministic start condition without relying on one previous resource state.
+
+  - id: SKILL-023
+    severity: error
+    scope:
+      - preparation
+    checkType: structural
+    requirement: A disabled Preparation shall perform no resource writes, shall clear local progress without cleanup writes, shall keep Running false, and shall publish Ready, Completed, and Error as current resource-condition projections.
+    rationale: Removing Enable transfers stimulus ownership away from the Preparation immediately.
+
+  - id: SKILL-024
+    severity: error
+    scope:
+      - preparation
+    checkType: semantic
+    requirement: A Preparation shall not own the DUT call, Test Case timeout monitoring, Assertions, events, or final Test Case result, and reusable forms shall not bind concrete global resource instances directly.
+    rationale: Preparation remains a target-state helper owned by the Test Case.
+
+  - id: SKILL-025
+    severity: error
+    scope:
+      - test-case
+    checkType: semantic
+    requirement: A generated Test Case shall be classified as generally reusable, resource-family, or dedicated and shall represent one stable behavior-oriented scenario without mode-selected alternatives.
+    rationale: Test Case reuse must vary bindings without changing scenario meaning or flow.
+
+  - id: SKILL-026
+    severity: error
+    scope:
+      - test-case
+    checkType: semantic
+    requirement: Variable resource, stimulus, expectation, limit, tolerance, and timing values shall be explicit interface parameters while invariant scenario facts remain local constants.
+    rationale: The interface shall expose instance variation without turning stable scenario facts into unnecessary runtime configuration.
+
+  - id: SKILL-027
+    severity: error
+    scope:
+      - test-case
+    checkType: semantic
+    requirement: Tested-block instantiation and calling shall be explicitly internal or external, and external call patterns shall expose stimulus and feedback without selecting the concrete tested block inside the Test Case.
+    rationale: Call ownership determines reuse and cycle behavior and must remain visible.
+
+  - id: SKILL-028
+    severity: error
+    scope:
+      - test-case
+    checkType: structural
+    requirement: Test Case resource interfaces shall prefer direct typed parameters, existing production UDTs, or existing resource-ID accessors; production UDTs shall not be modified and UnitTest-specific interface UDTs require a coherent grouping justification.
+    rationale: Reuse shall preserve production interfaces and avoid generic test-configuration containers.
+
+  - id: SKILL-029
+    severity: error
+    scope:
+      - test-case
+    checkType: semantic
+    requirement: Every stateful Test Case use shall have separate FB state, ControlData, hierarchical identity, Sequencer state, Preparation state, and Assertion state as applicable.
+    rationale: Reusing an implementation must not share lifecycle or finding state between Test Case instances.
+
+  - id: SKILL-030
+    severity: warning
+    scope:
+      - test-case
+      - preparation
+    checkType: manual-review
+    requirement: Existing Preparations shall be considered and adapted where their target-condition behavior remains coherent before a new Preparation is created.
+    rationale: Preparation reuse avoids duplicated target-state logic while preserving one clear behavior per block.
+
+  - id: SKILL-031
+    severity: warning
+    scope:
+      - test-case
+      - assertion
+    checkType: manual-review
+    requirement: Framework Assertions shall be selected first; a project- or TestCase-specific Assertion requires a case-specific need and shall be preferred over complex inline Test Case evaluation logic.
+    rationale: Assertion reuse is the default, while a coherent specific Assertion keeps exceptional evaluation logic isolated and testable.
+
+  - id: SKILL-032
+    severity: error
+    scope:
+      - test-case
+    checkType: manual-review
+    requirement: Before a dedicated Test Case is refactored for reuse, its scenario, lifecycle, Assertion, result, event, and relevant cycle semantics shall be recorded as the comparison baseline.
+    rationale: Refactoring bindings must not silently change the tested behavior or framework evidence.
+
+  - id: SKILL-033
+    severity: error
+    scope:
+      - test-case
+    checkType: semantic
+    requirement: Reuse refactoring shall extract only variable bindings and scenario parameters and shall not introduce mode, flow, Assertion-selection, or test-type parameters that combine different scenarios.
+    rationale: One refactored Test Case must continue to represent one stable scenario.
+
+  - id: SKILL-034
+    severity: error
+    scope:
+      - test-case
+    checkType: manual-review
+    requirement: Internal or external tested-block call ownership shall remain unchanged during reuse-only refactoring unless an explicit decision authorizes the resulting call-order and cycle-behavior change.
+    rationale: Moving a tested-block call across the Test Case boundary can change observable behavior independently of interface reuse.
+
+  - id: SKILL-035
+    severity: error
+    scope:
+      - test-case
+    checkType: semantic
+    requirement: A refactored Test Case shall preserve Preparation, Assertion, result-priority, status-publication, lifecycle, and final-event semantics for its original binding.
+    rationale: Reuse is not a license to alter framework behavior or acceptance criteria.
+
+  - id: SKILL-036
+    severity: error
+    scope:
+      - test-case
+    checkType: manual-review
+    requirement: A refactored Test Case shall be validated with its original binding and at least one additional binding, with separate state, ControlData, and hierarchical identity for every use.
+    rationale: Reuse is demonstrated only when multiple independent instances retain equivalent scenario behavior.
+
+  - id: SKILL-037
+    severity: error
+    scope:
+      - preparation
+    checkType: manual-review
+    requirement: Before a dedicated Preparation is refactored for reuse, its target condition, normal-state coverage, exceptional errors, active stimulus, progress, and status semantics shall be recorded as the comparison baseline.
+    rationale: Refactoring bindings must not silently change the prepared start condition or its diagnostics.
+
+  - id: SKILL-038
+    severity: error
+    scope:
+      - preparation
+    checkType: semantic
+    requirement: Preparation reuse refactoring shall extract only variable resource and target-condition dependencies and shall not introduce target-condition modes that combine different preparation behaviors.
+    rationale: One refactored Preparation must continue to establish one coherent target condition.
+
+  - id: SKILL-039
+    severity: error
+    scope:
+      - preparation
+    checkType: semantic
+    requirement: A refactored Preparation shall preserve level-based Enable, disabled-state status projection, active resource-write ownership, normal-state convergence, exceptional Error meaning, and the exclusion of DUT calls and Full Owner behavior.
+    rationale: Preparation reuse must retain the existing framework and resource-ownership boundary.
+
+  - id: SKILL-040
+    severity: error
+    scope:
+      - preparation
+    checkType: manual-review
+    requirement: A refactored Preparation shall be validated with its original resource binding and at least one additional binding, with separate Preparation instance state for concurrent use.
+    rationale: Reuse is demonstrated only when multiple resources retain equivalent target-condition and status behavior.
+
+  - id: SKILL-041
+    severity: error
+    scope:
+      - test-case
+    checkType: semantic
+    requirement: Reset handling shall establish one deterministic base state for every stateful local DUT, fixture, mirror, scenario controller, event capture, command history, Assertion, result, and memorized test value independently of the preceding lifecycle path.
+    rationale: A Test Case must be repeatable after completed, active, aborted, failed, and error paths without PLC restart or retained fixture state.
+
+  - id: SKILL-042
+    severity: error
+    scope:
+      - test-case
+    checkType: semantic
+    requirement: A scenario that intentionally applies invalid configuration or another condition unsuitable for fixture reset shall reset the stateful fixture with a valid setup before applying the tested condition.
+    rationale: Adapting expectations to stale state hides missing fixture reset and makes repeated execution path-dependent.
+
+  - id: SKILL-043
+    severity: error
+    scope:
+      - test-case
+    checkType: manual-review
+    requirement: Every generated stateful Test Case shall be validated over at least two consecutive executions without PLC restart and, where applicable, by Abort followed by exactly one Reset and an immediate same-session follow-up execution; active and error reset paths shall also be covered where applicable.
+    rationale: A successful first execution or recovery requiring a second Reset does not prove deterministic reset or repeatability.
+
+  - id: SKILL-044
+    severity: error
+    scope:
+      - run-control
+      - test-suite
+    checkType: semantic
+    requirement: A direct owner implementation without a generic Orchestrator shall bound subordinate reset dispatch against available event-buffer capacity, retain the required reset headroom, skip only subordinate owners that are both Idle and Ready, and keep Reset active until all required subordinate owners have reached their reset-complete condition.
+    rationale: Unbounded hierarchical reset dispatch can exhaust the event buffer and prevent the framework from returning to a startable base state.
+
+  - id: SKILL-045
+    severity: error
+    scope:
+      - test-suite
+    checkType: semantic
+    requirement: Select Serial, Parallel, or ParallelSlots Test Case orchestration from execution-order and resource-ownership requirements; do not select by EventBuffer size and do not reference an Adaptive Orchestrator variant.
+    rationale: EventBuffer capacity is an internal execution constraint of the existing Orchestrators, not an additional project-selected execution model.
+
+  - id: SKILL-046
+    severity: error
+    scope:
+      - test-case
+    checkType: semantic
+    requirement: Publish PreparationStateCount, TestStateCount, and AssertionCountTotal cyclically through UpdateTestCaseStatusView; count the longest finite executable path, use zero Preparation states only when no Preparation state exists, require at least one Test state, and keep the values stable from Idle AND Ready through Completed.
+    rationale: Test Case Orchestrators require valid and stable lifecycle metadata to reserve a conservative event budget before Start.
+
+  - id: SKILL-047
+    severity: error
+    scope:
+      - test-suite
+    checkType: semantic
+    requirement: Do not add project-side EventBuffer reservation logic around a framework Test Case Orchestrator; a direct implementation without that Orchestrator shall instead provide equivalent producer-owned global reservation, capacity-gating, pending-Start, completion release, Abort retention, and Reset handover behavior.
+    rationale: Competing reservation owners can double-allocate capacity, while an unreserved direct implementation can overrun the EventBuffer.
+
+  - id: SKILL-048
+    severity: error
+    scope:
+      - test-case
+    checkType: structural
+    requirement: Every Test Case-owned stateful FB instance shall be called exactly once per Test Case invocation at one central site outside lifecycle, scenario, Assertion, and prior-output conditions; fixed loops are permitted only for a fixed owned instance set called unconditionally. Missing calls, branch-distributed call sites and actual multiple execution are distinct findings. Accept an exception only within the explicitly examined, narrowly scoped testability arrangement described in the Authoring method; it does not waive unaffected framework calls or monitoring.
+    rationale: Unjustified conditional or repeated invocation compromises cyclic state progression and can retain state across Abort, Reset or follow-up execution; mutually exclusive call sites are conditional structure, not evidence of multiple execution.
+
+  - id: SKILL-049
+    severity: error
+    scope:
+      - test-case
+    checkType: semantic
+    requirement: For the normal unconditional owned call, neutralize owned command inputs and prepare only the current-cycle stimulus before the call; capture and evaluate outputs after it. An explicitly accepted exceptional call arrangement shall follow its agreed call/sample trace and shall not treat unprocessed or stale DUT outputs as a new reaction.
+    rationale: Explicit input ordering prevents stale Start, Abort, or Reset stimuli and defines which cycle's outputs are evaluated.
+
+  - id: SKILL-050
+    severity: error
+    scope:
+      - test-case
+    checkType: semantic
+    requirement: An owned stateful fixture shall receive valid reset configuration and public Reset according to its actual interface semantics; monitor its defined reset baseline before accepting that baseline. DUT Idle need not imply DUT Ready. Preserve Framework Full Owner Idle/Ready requirements and derive Test Case readiness from every baseline and startability condition actually required for the scenario.
+    rationale: Enclosing Reset state or elapsed cycles do not prove that retained nested state has been cleared.
+
+  - id: SKILL-051
+    severity: error
+    scope:
+      - test-case
+      - preparation
+    checkType: semantic
+    requirement: The owning orchestration shall ensure exclusive control of shared external resources without peer-arbitration logic inside Test Cases. Functional resource manipulation is confined to active Test Case/Preparation execution; inactive actors shall not interfere with sequential reuse. Public DUT Reset requests and subsequent idle-state observation follow the Test Case contract's Reset exception. Shared, reserved or producer-owned state shall be released through its owner protocol or Preparation and shall not be overwritten directly by a non-owner Test Case; private DUT instance-data intervention requires the separately examined and explicitly accepted testability exception.
+    rationale: Orchestration prevents concurrent masters; phase-limited influence permits sequential resource reuse. Reset requests do not transfer ownership of DUT status or private implementation state to the Test Case.
+
+  - id: SKILL-052
+    severity: error
+    scope:
+      - test-case
+    checkType: semantic
+    requirement: Independent stateful scenarios with separate purposes, baselines, stimulus sequences, expected results, or pass/fail identities shall be separate Test Cases; unrelated scenarios shall not be multiplexed by a mode or numeric scenario-step controller.
+    rationale: Separate Test Cases provide independent reset, result, event, and repeat-run identity instead of coupling unrelated retained state.
+
+  - id: SKILL-053
+    severity: warning
+    scope:
+      - run-control
+      - test-suite
+      - test-case
+      - preparation
+    checkType: manual-review
+    requirement: Use the included general guidance for numeric/type/source review against the authoritative styleguides. Preserve the required stimulus/Expected values, meaningful names, direct framework-derived state relationships and exact/tolerant comparison. Self-evident literals remain allowed; a framework relationship does not waive the supported expression context. Reconcile complete declarations and executable use with accepted test intent, and report missing target evidence without inventing a runtime review gate or relaxing Expected.
+    rationale: The general guidance supplies technical correctness and evidence criteria; UnitTest Authoring preserves the intended observations and comparison relationship. Applying that guidance must not lose naming exceptions, required value distinctions or preserved expectations.
+
+  - id: SKILL-054
+    severity: error
+    scope:
+      - run-control
+      - test-suite
+      - test-case
+    checkType: semantic
+    requirement: Derive positive normal, Reset, Abort, and Preparation timeout values bottom-up from the actually invoked child and resource paths, the selected execution pattern, available source or dependency evidence, configured bounds, and lifecycle and PLC-cycle overhead; request missing dynamic or inaccessible timing from the user instead of inventing it. Distinguish given conditions, conditions established by the test and unresolved assumptions. Do not turn unsupported capacity, service or overhead estimates into mandatory integration preconditions by calling them conservative; retain the qualification gap and affected claim. Existing Orchestrators own their capacity/reservation behavior.
+    rationale: Arbitrary timeout values or invented prerequisites can preempt valid behavior, hide the responsible timeout, or impose an unsupported consumer requirement. An explicitly unknown bound is not an established requirement.
+
+  - id: SKILL-055
+    severity: error
+    scope:
+      - run-control
+      - test-suite
+    checkType: semantic
+    requirement: Select Serial, Parallel, or ParallelSlots from explicit ordering, independence, slot, and resource-ownership requirements; for ParallelSlots, assign every child exactly once within valid continuous slot bounds and prevent exclusive-resource conflicts within one slot.
+    rationale: Orchestrator choice and configuration define execution semantics and shall not be inferred from EventBuffer capacity or arbitrary template defaults.
+
+  - id: SKILL-056
+    severity: error
+    scope:
+      - run-control
+      - test-suite
+      - test-case
+      - preparation
+    checkType: structural
+    requirement: Use the included declaration/expression-context review and the authoritative styleguide for invariant scenario constants. Keep them distinct from variable bindings and preserve supported executable framework-state relationships. Do not assume a permitted direct state-offset relationship is a valid declaration initializer or CASE label; constants and formals retain their actual source contexts.
+    rationale: The general source-context policy has one canonical application method, included as a package resource; UnitTest's framework-derived relationships and invariant-versus-variable decisions remain explicit.
+
+  - id: SKILL-057
+    severity: warning
+    scope:
+      - test-case
+    checkType: semantic
+    requirement: Keep checked information and expectations explicit. Prefer direct actual/expected Assertions for value comparisons and clearly domain-named Boolean signals for coherent composite properties. Decompose overloaded predicates when a name would still conceal independent information; preserve understandable expectations, failure attribution and useful actual values. Evaluate a plausible resulting PC-side finding from the actual family message and stable name/resource/state context for check location, expected property and actual deviation. Prefer matching typed Assertions over Boolean verdicts that discard relevant compared values; retain genuine Boolean/coherent composite properties. Account for rendering and latching limits without changing acceptance, inventing a root cause, client behavior, log protocol or contract fields. No per-Assertion fault injection or fixed report schema is required. Prefer separate instances for independent check sites within one state, written individually or as arrays of distinct instances with aligned binding data and bounded loop calls. Array elements keep independent state and stable meaningful identities; no wait between elements or cross-cycle iterator is implied. Neither call representation has universal priority. Continuous observation normally uses one instance; meaningful multi-state reuse requires compatible family history/result semantics, stable Assertion identity and actual logged State. State changes do not reset latched failures or guarantee further findings. Same-state reuse for different samples is an exception requiring a concrete benefit and sufficient first-failure/aggregate attribution without dynamic row names or invented log-text protocols. Required independent results/findings need separate instances or Case executions. Call each instance once per invocation, reset only in the enclosing Reset, and never share mutable instances across concurrent Cases. Consider evidenced resource costs without making minimum instance count or one instance per variable/row a goal.
+    rationale: Assertion type reuse is different from sharing observation and finding state. A failing overall Case or private snapshots do not establish adequate attribution; additional states alone do not provide independent results. Fewer scenarios or instances must not hide independently relevant information.
+
+  - id: SKILL-058
+    severity: warning
+    scope:
+      - test-case
+    checkType: semantic
+    requirement: Select execution structure from accepted behavior, actual call/observation boundaries, isolation, required diagnostics and evidenced execution/storage costs; explain consequential choices briefly. Separately choose explicit calls or arrays of distinct instances with aligned data and bounded loop calls for readability and homogeneous bindings; arrays are neither single-instance reuse nor an implied cross-cycle execution model. Prefer framework multi-test-state sequencing for successive stimulus/observation phases spanning invocations; a coherent immediate check can remain single-state. Justify a private phase controller or cross-cycle sample iterator rather than choosing either by habit. Choose meaningful phases, not one state per cycle, operation or data row, and do not switch to multi-state merely to share Assertions. Bounded within-invocation iteration remains available under actual call-ownership and cyclic constraints. A bounded index alone is not a second sequencer, but a data table is not independent parameterized test execution. Complete observations before progression independently of Passed and preserve required attribution/results.
+    rationale: Framework-owned progression avoids redundant phase machinery where behavioral steps require it. The preferred representation follows the actual scenario and diagnostics, not a template habit, shortest source, minimum Assertion count or blanket rejection of counters and single-state Cases.
+
+  - id: SKILL-059
+    severity: error
+    scope:
+      - run-control
+      - test-suite
+      - test-case
+      - preparation
+    checkType: manual-review
+    requirement: Complete the included declaration/attribute and technical-access review with the actual general/project matrices, destination structure and qualified profiles, preserving required UnitTest scaffold settings and data roles. Include applicable containers, defining members and nested storage/type relationships; a blanket datatype omission is not an allowed scaffold transformation. Fit owners into the existing project structure; propose and align a first-time or unclear structure before creation without requiring or excluding Software Units. Resolve destination-copy visibility and constant scope through the included general guidance rather than deriving access from public API classification or original publication metadata. Keep missing effective-property or qualification evidence unresolved, not passed on source equality or compilation alone.
+    rationale: The included general resources supply the technical method without another matrix. UnitTest Authoring retains scaffold preservation and domain-role obligations; neither resource inclusion nor correct member settings establish every required native property.

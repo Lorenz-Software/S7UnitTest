@@ -1,0 +1,173 @@
+FUNCTION_BLOCK "UnitTestCase_{{SCENARIO}}"
+TITLE = UnitTestCase_{{SCENARIO}}
+{ S7_Optimized_Access := 'TRUE' ; Published := 'FALSE' }
+NAME : '{{BLOCK_UUID}}'
+// {{TEST_CASE_DESCRIPTION}}
+   VAR_INPUT
+      "CycleTime" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : DInt;   // Current PLC cycle time in ms.
+      "ConfigData" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "UDT_UnitTestCaseConfig";   // Active test-case configuration input.
+      "ResourceName" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : String := '';   // Optional resource name for emitted events.
+      {{DECLARE_SCENARIO_INPUTS}}
+   END_VAR
+
+   VAR_IN_OUT
+      "ControlData" : "UDT_UnitTestCaseControl";   // Active test-case control storage.
+      {{DECLARE_SCENARIO_IN_OUTS}}
+   END_VAR
+
+   VAR
+      "Sequencer" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'; S7_SetPoint := 'False'} : "UnitTestCaseSequencer";   // Generic single-test-state lifecycle sequencer.
+      "LifecycleSignals" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'; S7_SetPoint := 'False'} : "UDT_UnitTestCaseLifecycleSignals";   // Debug-visible lifecycle signals passed to the Sequencer.
+      "State" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Int := "UnitTest.State.Uninitialized";   // Current test-case lifecycle state from the sequencer.
+      "PreviousState" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Int := "UnitTest.State.Uninitialized";   // Sequencer state before the current cycle update.
+      "Result" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Int := "UnitTest.Result.NotEvaluated";   // Local test-case result.
+      "Runtime" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : DInt := #T_OFF;   // Current test-case runtime from the sequencer in ms.
+      "TestStateRuntime" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : DInt := #T_OFF;   // Current test-state runtime from the sequencer in ms.
+      "PreparationRuntime" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : DInt := #T_OFF;   // Current preparation runtime from the sequencer in ms.
+      "NameConfigError" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Latched name hierarchy configuration error.
+      {{DECLARE_TESTED_BLOCK_INSTANCES}}
+      {{DECLARE_ASSERTION_INSTANCES}}
+   END_VAR
+
+   VAR_TEMP
+      "ConfigError" : Bool;   // Combined configuration error for the test-case status view.
+      "LocalConfigError" : Bool;   // TRUE when local test-case configuration prevents a valid run.
+      "SequencerConfigError" : Bool;   // TRUE when the generic sequencer reports invalid configuration.
+      "SequencerResult" : Int;   // Result output from the Test Case sequencer.
+      "PreparationResult" : Int;   // UnitTest result derived from preparation status bits.
+      "EvaluationResult" : Int;   // Result from testcase-specific evaluation logic.
+      {{DECLARE_ASSERTION_RESULTS}}
+      "AssertionCountTotal" : UInt;   // Local assertion total count.
+      "AssertionCountPassed" : UInt;   // Local passed assertion count.
+      "AssertionCountFailed" : UInt;   // Local failed assertion count.
+      "AssertionCountError" : UInt;   // Local assertion error count.
+      "RetVal_Event" : Int;   // Return value of unit-test event helper calls.
+   END_VAR
+   VAR CONSTANT
+      "T_OFF" : DInt := DINT#-1;   // Internal marker for a runtime counter that has not started.
+      {{DECLARE_SCENARIO_CONSTANTS}}
+   END_VAR
+
+
+BEGIN
+	REGION Default values
+	    #State := #ControlData.Status.Execution.State;
+	END_REGION
+
+	REGION Publish identity
+	    #ControlData.Name := #ConfigData.Name;
+	END_REGION
+
+	REGION Configuration status
+	    IF #ControlData.Cmd.Reset THEN
+	        #NameConfigError := NOT "IsTestCaseNameValid"(Name := #ControlData.Name);
+	    END_IF;
+	    #LocalConfigError := #NameConfigError OR {{SCENARIO_CONFIG_ERROR_CONDITION}};
+	END_REGION
+
+	REGION Lifecycle signals
+	    #LifecycleSignals.Ready := NOT #LocalConfigError;
+	    #LifecycleSignals.PreparationStatus.State := "UnitTest.State.Completed";
+	    #LifecycleSignals.PreparationStatus.ExecutionStatus := "UnitTest.ExecutionStatus.Completed";
+	    #LifecycleSignals.PreparationStatus.Ready := TRUE;
+	    #LifecycleSignals.PreparationStatus.Running := FALSE;
+	    #LifecycleSignals.PreparationStatus.Completed := TRUE;
+	    #LifecycleSignals.PreparationStatus.Error := FALSE;
+	    #LifecycleSignals.TestStateFinished := {{TEST_STATE_FINISHED_CONDITION}};
+	END_REGION
+
+	REGION Sequencer
+	    #Sequencer(CycleTime := #CycleTime,
+	               Name := #ControlData.Name,
+	               ResourceName := #ResourceName,
+	               CmdData := #ControlData.Cmd,
+	               ConfigData := #ConfigData,
+	               LifecycleSignals := #LifecycleSignals,
+	               State => #State,
+	               PreviousState => #PreviousState,
+	               Result => #SequencerResult,
+	               ConfigError => #SequencerConfigError,
+	               Runtime => #Runtime,
+	               TestStateRuntime => #TestStateRuntime,
+	               PreparationRuntime => #PreparationRuntime);
+	END_REGION
+
+	REGION Combine configuration status
+	    #ConfigError := #LocalConfigError OR #SequencerConfigError;
+	    #LifecycleSignals.Ready := #LifecycleSignals.Ready AND NOT #ConfigError;
+	END_REGION
+
+	REGION Preparation
+	    // No active Preparation. The Sequencer receives an already-completed Preparation status.
+	END_REGION
+
+	REGION Test execution
+	    // For each owned stateful FB: first assign neutral inputs and valid reset configuration, then apply the current-cycle stimulus.
+	    // Call each owned instance exactly once and unconditionally, then capture current-cycle outputs. For an external DUT,
+	    // prepare stimulus and observe feedback through the interface without adding a second DUT call.
+	    {{EXECUTE_TEST_SCENARIO}}
+	END_REGION
+
+	REGION Assertions
+	    // Call selected Assertion FBs every cycle.
+	    // Use Reset := #State = "UnitTest.State.Reset".
+	    // Use hierarchical names ending in Assert<CheckedDetail>.
+      {{CALL_ASSERTIONS}}
+	END_REGION
+
+	REGION Aggregate assertion counters
+	    #AssertionCountTotal := {{ASSERTION_COUNT}};
+	    #AssertionCountPassed := 0;
+	    #AssertionCountFailed := 0;
+	    #AssertionCountError := 0;
+	    {{UPDATE_ASSERTION_COUNTERS}}
+	END_REGION
+
+	REGION Result
+	    #PreparationResult := "UnitTest.Result.NotEvaluated";
+	    #EvaluationResult := {{COMBINE_ASSERTION_RESULTS}};
+	    #Result := "CreateTestCaseResult"(State := #State,
+	                                      PreviousResult := #ControlData.Status.Execution.Result,
+	                                      SequencerResult := #SequencerResult,
+	                                      PreparationResult := #PreparationResult,
+	                                      EvaluationResult := #EvaluationResult);
+	END_REGION
+
+	REGION Update status view
+	    "UpdateTestCaseStatusView"(State := #State,
+	                               Result := #Result,
+	                               Runtime := #Runtime,
+	                               ConfigError := #ConfigError,
+	                               Ready := #LifecycleSignals.Ready,
+	                               PreparationStateCount := 0,
+	                               TestStateCount := 1,
+	                               AssertionCountTotal := #AssertionCountTotal,
+	                               AssertionCountPassed := #AssertionCountPassed,
+	                               AssertionCountFailed := #AssertionCountFailed,
+	                               AssertionCountError := #AssertionCountError,
+	                               ControlData := #ControlData);
+	END_REGION
+
+	REGION Emit finalization events
+	    "EmitTestCaseFinalizationEvents"(PreviousState := #PreviousState,
+	                                     State := #State,
+	                                     ResourceName := #ResourceName,
+	                                     ControlData := #ControlData);
+	END_REGION
+
+	REGION Outputs
+	    // Drive owned resource outputs only in Preparing and active Test states.
+      {{APPLY_SCENARIO_OUTPUTS}}
+	END_REGION
+
+	REGION Memorize values
+	END_REGION
+
+	REGION Reset command bits
+	    #ControlData.Cmd.Start := FALSE;
+	    #ControlData.Cmd.Abort := FALSE;
+	    #ControlData.Cmd.Reset := FALSE;
+	END_REGION
+
+END_FUNCTION_BLOCK
+

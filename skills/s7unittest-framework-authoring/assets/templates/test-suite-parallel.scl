@@ -1,0 +1,164 @@
+FUNCTION_BLOCK "UnitTestSuite_{{SUBJECT}}"
+TITLE = UnitTestSuite_{{SUBJECT}}
+{ S7_Optimized_Access := 'TRUE' ; Published := 'FALSE' }
+NAME : '{{BLOCK_UUID}}'
+// Reusable or project-specific Test Suite using the framework Sequencer and Parallel Test Case orchestration.
+   VAR_INPUT
+      "CycleTime" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : DInt;   // Current PLC cycle time in ms.
+      "ConfigData" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "UDT_UnitTestSuiteConfig";   // Active suite configuration input.
+   END_VAR
+
+   VAR_IN_OUT
+      "ControlData" : "UDT_UnitTestSuiteControl";   // Active suite control storage.
+   END_VAR
+
+   VAR
+      "Sequencer" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'; S7_SetPoint := 'False'} : "UnitTestSuiteSequencer";   // Generic Test Suite lifecycle sequencer instance.
+      "Orchestrator" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'; S7_SetPoint := 'False'} : "UnitTestCaseOrchestrator_Parallel";   // Generic parallel Test Case orchestration instance.
+      "OrchestrationCmd" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'; S7_SetPoint := 'False'} : "UDT_UnitTestCommand";   // One-cycle commands from the Suite Sequencer to the Test Case Orchestrator.
+      "LifecycleSignals" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'; S7_SetPoint := 'False'} : "UDT_UnitTestLifecycleSignals";   // Shared Test Case lifecycle-signal snapshot.
+      "State" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Int := "UnitTest.State.Uninitialized";   // Local Test Suite state from the Sequencer.
+      "PreviousState" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Int := "UnitTest.State.Uninitialized";   // Test Suite state before the current cycle update.
+      "Runtime" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : DInt := #T_OFF;   // Local accumulated suite runtime in ms.
+      "Result" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Int := "UnitTest.Result.NotEvaluated";   // Local suite result value.
+      "ConfigError" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Combined Suite Sequencer and Test Case Orchestrator configuration error.
+      "SequencerConfigError" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Configuration error output from the Suite Sequencer.
+      "OrchestratorConfigError" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Configuration error output from the Test Case Orchestrator.
+      "SequencerResult" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Int := "UnitTest.Result.NotEvaluated";   // Technical result output from the Suite Sequencer.
+      "OrchestratorState" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Int := "UnitTest.State.Uninitialized";   // Previous-call Test Case Orchestrator state consumed by the Sequencer.
+      "OrchestratorPreviousState" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Int := "UnitTest.State.Uninitialized";   // Test Case Orchestrator state before the current cycle update.
+      "OrchestratorResult" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Int := "UnitTest.Result.NotEvaluated";   // Technical result output from the Test Case Orchestrator.
+      "OrchestratorRuntime" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : DInt := #T_OFF;   // Active Test Case orchestration runtime in ms.
+      "TestCaseControlData" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'; S7_SetPoint := 'False'} : Array[1..#TestCaseCount] of "UDT_UnitTestCaseControl";   // Local test-case control data owned by this suite.
+      "TestCaseConfigData" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'; S7_SetPoint := 'False'} : Array[1..#TestCaseCount] of "UDT_UnitTestCaseConfig";   // Local test-case configuration data owned by this suite.
+      "TestCaseActive" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Array[1..#TestCaseCount] of Bool;   // Local debug view for currently active test cases.
+      {{DECLARE_TEST_CASE_INSTANCES}}
+   END_VAR
+
+   VAR_TEMP
+      "LocalConfigError" : Bool;   // Current owner and child configuration before dispatch.
+      "LoopIndex" : UInt;
+   END_VAR
+
+   VAR CONSTANT
+      "T_OFF" : DInt := DINT#-1;   // Internal marker for a runtime counter that has not started.
+      "TestCaseCount" : UInt := {{TEST_CASE_COUNT}};   // Number of Test Cases owned by this Suite.
+   END_VAR
+
+
+BEGIN
+	REGION Publish identity
+	    #ControlData.Name := #ConfigData.Name;
+	END_REGION
+
+	REGION TestCase configuration
+	    // Derive each timeout from the invoked Test Case and resource path; derive this parallel Suite timeout from the longest child path.
+	    {{CONFIGURE_TEST_CASES}}
+	END_REGION
+
+	REGION Configuration status
+	    #LocalConfigError := NOT "IsTestSuiteConfigValid"(ConfigData := #ConfigData)
+	        OR NOT "IsTestSuiteNameValid"(Name := #ControlData.Name);
+	    FOR #LoopIndex := 1 TO #TestCaseCount DO
+	        IF NOT "IsTestCaseConfigValid"(ConfigData := #TestCaseConfigData[#LoopIndex]) THEN
+	            #LocalConfigError := TRUE;
+	            EXIT;
+	        END_IF;
+	    END_FOR;
+	END_REGION
+
+	REGION Lifecycle signals
+	    #LifecycleSignals.Ready := NOT #LocalConfigError AND "AreTestCasesReady"(TestCaseControlData := #TestCaseControlData);
+	    #LifecycleSignals.Completed := "AreTestCasesCompleted"(TestCaseControlData := #TestCaseControlData);
+	    #LifecycleSignals.AbortFinished := "IsAbortCompleteForAllTestCases"(TestCaseControlData := #TestCaseControlData);
+	    #LifecycleSignals.ResetFinished := "IsResetCompleteForAllTestCases"(Reset := #ControlData.Cmd.Reset,
+	                                                                        TestCaseControlData := #TestCaseControlData);
+	END_REGION
+
+	REGION Sequencer
+	    #Sequencer(CycleTime := #CycleTime,
+	               Name := #ControlData.Name,
+	               ResourceName := '',
+	               ConfigData := #ConfigData,
+	               CmdData := #ControlData.Cmd,
+	               LifecycleSignals := #LifecycleSignals,
+	               OrchestratorState := #OrchestratorState,
+	               OrchestratorResult := #OrchestratorResult,
+	               ConfigError => #SequencerConfigError,
+	               State => #State,
+	               PreviousState => #PreviousState,
+	               Result => #SequencerResult,
+	               Runtime => #Runtime,
+	               CmdSubordinate => #OrchestrationCmd);
+	END_REGION
+
+	REGION Test Case Orchestrator
+	    #Orchestrator(CycleTime := #CycleTime,
+	                  Name := #ControlData.Name,
+	                  LifecycleSignals := #LifecycleSignals,
+	                  CmdData := #OrchestrationCmd,
+	                  ConfigError => #OrchestratorConfigError,
+	                  State => #OrchestratorState,
+	                  PreviousState => #OrchestratorPreviousState,
+	                  Result => #OrchestratorResult,
+	                  Runtime => #OrchestratorRuntime,
+	                  TestCaseConfigData := #TestCaseConfigData,
+	                  TestCaseControlData := #TestCaseControlData);
+	END_REGION
+
+	REGION Combine configuration status
+	    #ConfigError := #LocalConfigError OR #SequencerConfigError OR #OrchestratorConfigError;
+	    #LifecycleSignals.Ready := #LifecycleSignals.Ready AND NOT #ConfigError;
+	END_REGION
+
+	REGION Call test-case instances
+	    {{CALL_TEST_CASE_INSTANCES}}
+	END_REGION
+
+	REGION Result
+	    IF (#State = "UnitTest.State.Completing"
+	        AND #PreviousState = "UnitTest.State.Completing")
+	        OR #State = "UnitTest.State.Completed"
+	    THEN
+	        #Result := #ControlData.Status.Execution.Result;
+	    ELSE
+	        #Result := "CreateTestSuiteResult"(State := #State,
+	                                           PreviousResult := #ControlData.Status.Execution.Result,
+	                                           SequencerResult := #SequencerResult,
+	                                           OrchestratorResult := #OrchestratorResult,
+	                                           TestCaseControlData := #TestCaseControlData);
+	    END_IF;
+	END_REGION
+
+	REGION Update status view
+	    "UpdateTestSuiteStatusView"(State := #State,
+	                                Result := #Result,
+	                                Runtime := #Runtime,
+	                                ConfigError := #ConfigError,
+	                                Ready := #LifecycleSignals.Ready,
+	                                TestCaseControlData := #TestCaseControlData,
+	                                ControlData := #ControlData);
+	END_REGION
+
+	REGION Update test-case active view
+	    FOR #LoopIndex := 1 TO #TestCaseCount DO
+	        #TestCaseActive[#LoopIndex] := "IsTestCaseRunning"(ControlData := #TestCaseControlData[#LoopIndex]);
+	    END_FOR;
+	END_REGION
+
+	REGION Emit finalization events
+	    "EmitTestSuiteFinalizationEvents"(PreviousState := #PreviousState,
+	                                      State := #State,
+	                                      ResourceName := '',
+	                                      ControlData := #ControlData);
+	END_REGION
+
+	REGION Reset command bits
+	    #ControlData.Cmd.Start := FALSE;
+	    #ControlData.Cmd.Abort := FALSE;
+	    #ControlData.Cmd.Reset := FALSE;
+	END_REGION
+
+
+END_FUNCTION_BLOCK
+

@@ -1,0 +1,174 @@
+FUNCTION_BLOCK "UnitTestRunControl"
+TITLE = UnitTestRunControl
+{ S7_Optimized_Access := 'TRUE' ; Published := 'FALSE' }
+NAME : '{{BLOCK_UUID}}'
+// Project-specific Run Control using the framework Sequencer and ParallelSlots Suite orchestration.
+   VAR_INPUT
+      "CycleTime" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : DInt;   // Current PLC cycle time in ms.
+      "ConfigData" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "UDT_UnitTestRunConfig";   // Active run-control configuration input.
+   END_VAR
+
+   VAR_IN_OUT
+      "ControlData" : "UDT_UnitTestRunControl";   // Active run-control storage.
+      "ContractInfoData" : "UDT_UnitTestContractInfo";   // Public run-control contract metadata.
+   END_VAR
+
+   VAR
+      "Sequencer" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'; S7_SetPoint := 'False'} : "UnitTestRunControlSequencer";   // Generic run-control lifecycle sequencer instance.
+      "SuiteOrchestrator" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'; S7_SetPoint := 'False'} : "UnitTestSuiteOrchestrator_ParallelSlots";   // Generic slot-based parallel Suite orchestration instance.
+      "SuiteOrchestrationCmd" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'; S7_SetPoint := 'False'} : "UDT_UnitTestCommand";   // Internal suite orchestration command data.
+      "LifecycleSignals" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'; S7_SetPoint := 'False'} : "UDT_UnitTestLifecycleSignals";   // Debug-visible Suite lifecycle signals.
+      "State" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Int := "UnitTest.State.Uninitialized";   // Local run-control state from the sequencer.
+      "PreviousState" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Int := "UnitTest.State.Uninitialized";   // Run-control state before the current cycle update.
+      "Result" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Int := "UnitTest.Result.NotEvaluated";   // Local run-control result.
+      "Runtime" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : DInt := #T_ON;   // Running-phase runtime from the sequencer in ms.
+      "StateRuntime" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : DInt := #T_ON;   // Current monitored-state runtime from the sequencer in ms.
+      "SuiteOrchestratorRuntime" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : DInt := #T_ON;   // Suite orchestration runtime in ms.
+      "SuiteOrchestratorState" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'; S7_SetPoint := 'False'} : Int := "UnitTest.State.Uninitialized";   // Previous-call Suite Orchestrator state consumed by the Sequencer.
+      "SuiteOrchestratorResult" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Int := "UnitTest.Result.NotEvaluated";   // Previous-cycle Suite Orchestrator result consumed by the Sequencer.
+      "NameConfigError" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Latched name hierarchy configuration error.
+      "SuiteExecutionSlot" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Array[1.."UnitTest.SuiteArray.Length"] of UInt;   // Parallel execution slot per Suite.
+      "SuiteActive" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Array[1.."UnitTest.SuiteArray.Length"] of Bool;   // Run-control-local debug view for active suite execution.
+      {{DECLARE_SUITE_INSTANCES}}
+   END_VAR
+
+   VAR_TEMP
+      "ConfigError" : Bool;   // Combined configuration error for the run-control status view.
+      "SequencerConfigError" : Bool;   // Configuration error output from the generic sequencer.
+      "SuiteOrchestratorConfigError" : Bool;   // Configuration error output from the generic orchestrator.
+      "SequencerResult" : Int;   // Result output from the Run Control sequencer.
+      "SuiteOrchestratorPreviousState" : Int;   // Suite orchestrator state before the current cycle update.
+      "LoopIndex" : UInt;   // Generic suite-array loop index.
+   END_VAR
+
+
+   VAR CONSTANT
+      "T_ON" : DInt := DINT#0;   // Initial elapsed time when a runtime counter starts.
+   END_VAR
+
+BEGIN
+	REGION Publish identity
+	    #ControlData.Name := '{{RUN_CONTROL_NAME}}';
+	END_REGION
+
+	REGION Contract info
+	    #ContractInfoData.ContractVersion := '1.0.0';
+	    #ContractInfoData.FrameworkVersion := '2.0.0';
+
+	    "UpdateUnitTestEventBufferContractInfo"(ContractInfo := #ContractInfoData);
+	END_REGION
+
+	REGION Suite configuration
+	    // Derive Suite timeouts from their invoked children and derive the Run Control timeout from the sum of each slot's longest Suite path.
+	    {{CONFIGURE_SUITES}}
+	    // Assign every Suite exactly once and keep exclusive-resource users out of the same execution slot.
+	    {{CONFIGURE_SUITE_EXECUTION_SLOTS}}
+	END_REGION
+
+	REGION Event buffer requests
+	    "ProcessUnitTestEventBufferRequests"(ControlData := #ControlData);
+	END_REGION
+
+	REGION Configuration status
+	    IF #ControlData.Cmd.Reset THEN
+	        #NameConfigError := NOT "IsRunControlNameValid"(Name := #ControlData.Name);
+	    END_IF;
+
+	    #ConfigError := #NameConfigError
+	    OR NOT "IsRunControlConfigValid"(ConfigData := #ConfigData)
+	    OR NOT "CheckTestSuiteArrayBounds"(SuiteCount := #ConfigData.SuiteCount, SuiteConfigData := "DB_UnitTestSuiteConfig".Data, SuiteControlData := "DB_UnitTestSuiteControl".Data)
+	    OR NOT "IsEventBufferValid"();
+	END_REGION
+
+	REGION Lifecycle signals
+	    #LifecycleSignals.Ready := NOT #ConfigError AND "AreTestSuitesReady"(SuiteCount := #ConfigData.SuiteCount);
+	    #LifecycleSignals.Completed := "AreTestSuitesCompleted"(SuiteCount := #ConfigData.SuiteCount);
+	    #LifecycleSignals.AbortFinished := "IsAbortCompleteForAllTestSuites"(SuiteCount := #ConfigData.SuiteCount);
+	    #LifecycleSignals.ResetFinished := "IsResetCompleteForAllTestSuites"(Reset := #ControlData.Cmd.Reset,
+	                                                                         SuiteCount := #ConfigData.SuiteCount);
+	END_REGION
+
+	REGION Sequencer
+	    #Sequencer(CycleTime := #CycleTime,
+	               Name := #ControlData.Name,
+	               CmdData := #ControlData.Cmd,
+	               ConfigData := #ConfigData,
+	               LifecycleSignals := #LifecycleSignals,
+	               OrchestratorState := #SuiteOrchestratorState,
+	               OrchestratorResult := #SuiteOrchestratorResult,
+	               State => #State,
+	               PreviousState => #PreviousState,
+	               Result => #SequencerResult,
+	               ConfigError => #SequencerConfigError,
+	               Runtime => #Runtime,
+	               StateRuntime => #StateRuntime,
+	               CmdSubordinate => #SuiteOrchestrationCmd);
+	END_REGION
+
+	REGION Suite orchestrator
+	    #SuiteOrchestrator(CycleTime := #CycleTime,
+	                       Name := #ControlData.Name,
+	                       SuiteCount := #ConfigData.SuiteCount,
+	                       LifecycleSignals := #LifecycleSignals,
+	                       CmdData := #SuiteOrchestrationCmd,
+	                       SuiteConfigData := "DB_UnitTestSuiteConfig".Data,
+	                       SuiteControlData := "DB_UnitTestSuiteControl".Data,
+                       SuiteExecutionSlot := #SuiteExecutionSlot,
+	                       State => #SuiteOrchestratorState,
+	                       PreviousState => #SuiteOrchestratorPreviousState,
+	                       Result => #SuiteOrchestratorResult,
+	                       ConfigError => #SuiteOrchestratorConfigError,
+	                       Runtime => #SuiteOrchestratorRuntime);
+	END_REGION
+
+	REGION Combine configuration status
+	    #ConfigError := #ConfigError OR #SequencerConfigError OR #SuiteOrchestratorConfigError;
+	    #LifecycleSignals.Ready := #LifecycleSignals.Ready AND NOT #ConfigError;
+	END_REGION
+
+	REGION Call suite instances
+	    {{CALL_SUITE_INSTANCES}}
+	END_REGION
+
+	REGION Result
+	    IF (#State = "UnitTest.State.Completing"
+	        AND #PreviousState = "UnitTest.State.Completing")
+	        OR #State = "UnitTest.State.Completed"
+	    THEN
+	        #Result := #ControlData.Status.Execution.Result;
+	    ELSE
+	        #Result := "CreateUnitTestRunControlResult"(SuiteCount := #ConfigData.SuiteCount,
+	                                                    State := #State,
+	                                                    PreviousResult := #ControlData.Status.Execution.Result,
+	                                                    SequencerResult := #SequencerResult,
+	                                                    OrchestratorResult := #SuiteOrchestratorResult);
+	    END_IF;
+	END_REGION
+
+	REGION Update status view
+	    "UpdateUnitTestRunControlStatusView"(State := #State,
+	                                         Result := #Result,
+	                                         ConfigError := #ConfigError,
+	                                         Ready := #LifecycleSignals.Ready,
+	                                         Runtime := #Runtime,
+	                                         SuiteCount := #ConfigData.SuiteCount,
+	                                         ControlData := #ControlData);
+	END_REGION
+
+	REGION Update suite active view
+	    FOR #LoopIndex := 1 TO "UnitTest.SuiteArray.Length" DO
+	        #SuiteActive[#LoopIndex] := "IsTestSuiteRunning"(Index := #LoopIndex);
+	    END_FOR;
+	END_REGION
+
+	REGION Emit finalization events
+	    "EmitRunControlFinalizationEvents"(PreviousState := #PreviousState,
+	                                       State := #State,
+	                                       ControlData := #ControlData);
+	END_REGION
+
+	// The Run Control Sequencer consumes and acknowledges the public command bits.
+
+
+END_FUNCTION_BLOCK
+

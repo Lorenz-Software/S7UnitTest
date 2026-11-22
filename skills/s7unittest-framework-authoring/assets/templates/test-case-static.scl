@@ -1,0 +1,323 @@
+FUNCTION_BLOCK "UnitTestCase_{{SCENARIO}}"
+TITLE = UnitTestCase_{{SCENARIO}}
+{ S7_Optimized_Access := 'TRUE' ; Published := 'FALSE' }
+NAME : '{{BLOCK_UUID}}'
+// {{TEST_CASE_DESCRIPTION}}
+   VAR_INPUT
+      "CycleTime" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : DInt;   // Current PLC cycle time in ms.
+      "ConfigData" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : "UDT_UnitTestCaseConfig";   // Active test-case configuration input.
+      "ResourceName" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : String := '';   // Optional resource name for emitted events.
+      {{DECLARE_SCENARIO_INPUTS}}
+   END_VAR
+
+   VAR_IN_OUT
+      "ControlData" : "UDT_UnitTestCaseControl";   // Active test-case control storage.
+      {{DECLARE_SCENARIO_IN_OUTS}}
+   END_VAR
+
+   VAR
+      "LifecycleSignals" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'; S7_SetPoint := 'False'} : "UDT_UnitTestCaseLifecycleSignals";   // Debug-visible lifecycle signals passed to the Sequencer.
+      "State" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Int := "UnitTest.State.Uninitialized";   // Local test-case state-machine variable.
+      "PreviousState" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Int := "UnitTest.State.Uninitialized";   // State value before the current cycle updates.
+      "Result" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Int := "UnitTest.Result.NotEvaluated";   // Local test-case result.
+      "LifecycleResult" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Int := "UnitTest.Result.NotEvaluated";   // Local lifecycle result for the direct state-machine example.
+      "Runtime" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : DInt := #T_OFF;   // Local accumulated test-case runtime in ms.
+      "TestStateRuntime" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : DInt := #T_OFF;   // Local accumulated test-state runtime in ms.
+      "NameConfigError" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Latched name hierarchy configuration error.
+      {{DECLARE_TESTED_BLOCK_INSTANCES}}
+      {{DECLARE_ASSERTION_INSTANCES}}
+      "CmdStart_old" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool := FALSE;   // Previous start command value for edge detection.
+      "CmdAbort_old" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool := FALSE;   // Previous abort command value for edge detection.
+      "CmdReset_old" { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool := FALSE;   // Previous reset command value for edge detection.
+   END_VAR
+
+   VAR_TEMP
+      "ConfigError" : Bool;   // TRUE when configuration prevents a valid test-case run.
+      "EvaluationResult" : Int;   // Result from testcase-specific evaluation logic.
+      {{DECLARE_ASSERTION_RESULTS}}
+      "AssertionCountTotal" : UInt;   // Local assertion total count.
+      "AssertionCountPassed" : UInt;   // Local passed assertion count.
+      "AssertionCountFailed" : UInt;   // Local failed assertion count.
+      "AssertionCountError" : UInt;   // Local assertion error count.
+      "ActivateRuntimeMeasurement" : Bool;   // TRUE while the test-case runtime shall be accumulated.
+      "ActivateTestStateTimeMeasurement" : Bool;   // TRUE while the current test-state runtime timer is active.
+      "RetVal_Event" : Int;   // Return value of unit-test event helper calls.
+   END_VAR
+
+   VAR CONSTANT
+      "T_OFF" : DInt := DINT#-1;   // Internal marker for a runtime counter that has not started.
+      "T_ON" : DInt := DINT#0;   // Initial elapsed time when a runtime counter starts.
+      "MAX_TIMER" : DInt := DINT#2000000000;   // Existing accumulation ceiling for runtime counters in ms.
+      {{DECLARE_SCENARIO_CONSTANTS}}
+   END_VAR
+
+
+BEGIN
+	REGION Publish identity
+	    #ControlData.Name := #ConfigData.Name;
+	END_REGION
+
+	REGION Configuration status
+	    IF #ControlData.Cmd.Reset THEN
+	        #NameConfigError := NOT "IsTestCaseNameValid"(Name := #ControlData.Name);
+	    END_IF;
+
+	    #ConfigError := #NameConfigError
+	    OR NOT ("IsTestCaseConfigValid"(ConfigData := #ConfigData))
+	    OR {{SCENARIO_CONFIG_ERROR_CONDITION}};
+	END_REGION
+
+	REGION Timers
+	    #ActivateRuntimeMeasurement := #State = "UnitTest.State.Starting"
+	    OR #State = "UnitTest.State.Preparing"
+	    OR #State = "UnitTest.State.Running";
+	    IF #ActivateRuntimeMeasurement THEN
+	        IF #Runtime <= #T_OFF THEN
+	            #Runtime := #T_ON;
+	        ELSIF #Runtime < #MAX_TIMER THEN
+	            #Runtime += #CycleTime;
+	        END_IF;
+	    END_IF;
+
+	    #ActivateTestStateTimeMeasurement := #State = "UnitTest.State.Running";
+	    IF #ActivateTestStateTimeMeasurement THEN
+	        IF #TestStateRuntime <= #T_OFF THEN
+	            #TestStateRuntime := #T_ON;
+	        ELSIF #TestStateRuntime < #MAX_TIMER THEN
+	            #TestStateRuntime += #CycleTime;
+	        END_IF;
+	    END_IF;
+	END_REGION
+
+	REGION Lifecycle signals
+	    #LifecycleSignals.Ready := NOT #ConfigError;
+	    #LifecycleSignals.TestStateFinished := {{TEST_STATE_FINISHED_CONDITION}};
+	END_REGION
+
+	REGION Trigger events
+	    IF #ControlData.Cmd.Reset AND NOT #CmdReset_old THEN
+	        #RetVal_Event := "CreateUnitTestResetEvent"(OwnerScope := "UnitTest.OwnerScope.TestCase",
+	                                                    Name := #ControlData.Name,
+	                                                    ResourceName := #ResourceName,
+	                                                    State := #State);
+	    END_IF;
+
+	    IF #ControlData.Cmd.Start AND NOT #CmdStart_old THEN
+	        #RetVal_Event := "CreateUnitTestStartEvent"(OwnerScope := "UnitTest.OwnerScope.TestCase",
+	                                                    Name := #ControlData.Name,
+	                                                    ResourceName := #ResourceName,
+	                                                    State := #State);
+	    END_IF;
+
+	    IF #ControlData.Cmd.Abort AND NOT #CmdAbort_old THEN
+	        #RetVal_Event := "CreateUnitTestAbortEvent"(OwnerScope := "UnitTest.OwnerScope.TestCase",
+	                                                    Name := #ControlData.Name,
+	                                                    ResourceName := #ResourceName,
+	                                                    State := #State);
+	    END_IF;
+	END_REGION
+
+	REGION State machine
+	    IF #ControlData.Cmd.Reset THEN
+	        #State := "UnitTest.State.Reset";
+	    END_IF;
+
+	    CASE #State OF
+	        "UnitTest.State.Uninitialized":
+	            REGION State Uninitialized
+	                #Runtime := #T_OFF;
+	                #TestStateRuntime := #T_OFF;
+	            END_REGION
+
+	        "UnitTest.State.Reset":
+	            REGION State Reset
+	                #LifecycleResult := "UnitTest.Result.NotEvaluated";
+	                #Runtime := #T_OFF;
+	                #TestStateRuntime := #T_OFF;
+
+	                IF #ConfigError THEN
+	                    #LifecycleResult := "UnitTest.Result.Error";
+	                    #State := "UnitTest.State.Completing";
+	                    GOTO EndOfStateMachine;
+	                END_IF;
+
+	                #State := "UnitTest.State.Idle";
+	            END_REGION
+
+	        "UnitTest.State.Idle":
+	            REGION State Idle
+	                #Runtime := #T_OFF;
+	                #TestStateRuntime := #T_OFF;
+
+	                IF #ConfigError THEN
+	                    #LifecycleResult := "UnitTest.Result.Error";
+	                    #State := "UnitTest.State.Completing";
+	                    GOTO EndOfStateMachine;
+	                END_IF;
+
+	                IF #ControlData.Cmd.Abort THEN
+	                    GOTO EndOfStateMachine;
+	                END_IF;
+
+	                IF #ControlData.Cmd.Start THEN
+	                    #Runtime := #T_ON;
+	                    #State := "UnitTest.State.Starting";
+	                END_IF;
+	            END_REGION
+
+	        "UnitTest.State.Starting":
+	            REGION State Starting
+	                IF #ControlData.Cmd.Abort THEN
+	                    #LifecycleResult := "UnitTest.Result.Abort";
+	                    #State := "UnitTest.State.Aborting";
+	                    GOTO EndOfStateMachine;
+	                END_IF;
+	                #State := "UnitTest.State.Preparing";
+	            END_REGION
+
+	        "UnitTest.State.Preparing":
+	            REGION State Preparing
+	                IF #ControlData.Cmd.Abort THEN
+	                    #LifecycleResult := "UnitTest.Result.Abort";
+	                    #State := "UnitTest.State.Aborting";
+	                    GOTO EndOfStateMachine;
+	                END_IF;
+
+	                #TestStateRuntime := #T_ON;
+	                #State := "UnitTest.State.Running";
+	            END_REGION
+
+	        "UnitTest.State.Running":
+	            REGION State Running
+	                IF #ControlData.Cmd.Abort THEN
+	                    #LifecycleResult := "UnitTest.Result.Abort";
+	                    #State := "UnitTest.State.Aborting";
+	                    GOTO EndOfStateMachine;
+	                END_IF;
+
+	                IF #LifecycleSignals.TestStateFinished THEN
+	                    #State := "UnitTest.State.Completing";
+	                END_IF;
+	            END_REGION
+
+	        "UnitTest.State.Completing":
+	            REGION State Completing
+	                #State := "UnitTest.State.Completed";
+	            END_REGION
+
+	        "UnitTest.State.Completed":
+	            REGION State Completed
+	                // Stable terminal state until explicit reset.
+	                ;
+	            END_REGION
+
+	        "UnitTest.State.Aborting":
+	            REGION State Aborting
+	                #State := "UnitTest.State.Completing";
+	            END_REGION
+
+	        ELSE
+	            REGION State Not Handled
+	                IF #State <> #PreviousState THEN
+	                    #RetVal_Event := "CreateUnitTestFrameworkEvent"(Name := #ControlData.Name,
+	                                                                    State := #State,
+	                                                                    Severity := "Logging.Severity.Error",
+	                                                                    Message := 'Unhandled static-check test-case state.');
+	                END_IF;
+	                #LifecycleResult := "UnitTest.Result.Error";
+	                #State := "UnitTest.State.Completing";
+	                GOTO EndOfStateMachine;
+	            END_REGION
+	    END_CASE;
+
+	EndOfStateMachine:
+	    ;
+	END_REGION
+
+	REGION Preparation
+	    // No active Preparation for this static Test Case.
+	END_REGION
+
+	REGION Test execution
+	    // For each owned stateful FB: first assign neutral inputs and valid reset configuration, then apply the current-cycle stimulus.
+	    // Call each owned instance exactly once and unconditionally, then capture current-cycle outputs. For an external DUT,
+	    // prepare stimulus and observe feedback through the interface without adding a second DUT call.
+	    {{EXECUTE_TEST_SCENARIO}}
+	END_REGION
+
+	REGION Assertions
+	    // Call selected Assertion FBs every cycle.
+	    // Use Reset := #State = "UnitTest.State.Reset".
+	    // Use hierarchical names ending in Assert<CheckedDetail>.
+      {{CALL_ASSERTIONS}}
+	END_REGION
+
+	REGION Aggregate assertion counters
+	    #AssertionCountTotal := {{ASSERTION_COUNT}};
+	    #AssertionCountPassed := 0;
+	    #AssertionCountFailed := 0;
+	    #AssertionCountError := 0;
+	    {{UPDATE_ASSERTION_COUNTERS}}
+	END_REGION
+
+	REGION Result
+	    #EvaluationResult := {{COMBINE_LIFECYCLE_AND_ASSERTION_RESULTS}};
+	    #Result := "CreateTestCaseResult"(State := #State,
+	                                      PreviousResult := #ControlData.Status.Execution.Result,
+	                                      SequencerResult := "UnitTest.Result.NotEvaluated",
+	                                      PreparationResult := "UnitTest.Result.NotEvaluated",
+	                                      EvaluationResult := #EvaluationResult);
+	END_REGION
+
+	REGION Update status view
+	    "UpdateTestCaseStatusView"(State := #State,
+	                               Result := #Result,
+	                               Runtime := #Runtime,
+	                               ConfigError := #ConfigError,
+	                               Ready := #LifecycleSignals.Ready,
+	                               PreparationStateCount := 0,
+	                               TestStateCount := 1,
+	                               AssertionCountTotal := #AssertionCountTotal,
+	                               AssertionCountPassed := #AssertionCountPassed,
+	                               AssertionCountFailed := #AssertionCountFailed,
+	                               AssertionCountError := #AssertionCountError,
+	                               ControlData := #ControlData);
+	END_REGION
+
+	REGION Emit state transition
+	    IF #State <> #PreviousState THEN
+	        #RetVal_Event := "CreateUnitTestStateTransitionEvent"(OwnerScope := "UnitTest.OwnerScope.TestCase",
+	                                                              Name := #ControlData.Name,
+	                                                              ResourceName := #ResourceName,
+	                                                              StateOld := #PreviousState,
+	                                                              StateNew := #State);
+	    END_IF;
+	END_REGION
+
+	REGION Emit finalization events
+	    "EmitTestCaseFinalizationEvents"(PreviousState := #PreviousState,
+	                                     State := #State,
+	                                     ResourceName := #ResourceName,
+	                                     ControlData := #ControlData);
+	END_REGION
+
+	REGION Outputs
+	    // Drive owned resource outputs only in Preparing and active Test states.
+      {{APPLY_SCENARIO_OUTPUTS}}
+	END_REGION
+
+	REGION Memorize values
+	    #PreviousState := #State;
+	    #CmdStart_old := #ControlData.Cmd.Start;
+	    #CmdAbort_old := #ControlData.Cmd.Abort;
+	    #CmdReset_old := #ControlData.Cmd.Reset;
+	END_REGION
+
+	REGION Reset command bits
+	    #ControlData.Cmd.Start := FALSE;
+	    #ControlData.Cmd.Abort := FALSE;
+	    #ControlData.Cmd.Reset := FALSE;
+	END_REGION
+
+END_FUNCTION_BLOCK
+

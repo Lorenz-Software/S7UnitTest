@@ -1,0 +1,219 @@
+{
+    "packageName":  "s7unittest-framework-authoring",
+    "packageVersion":  "1.1.1",
+    "skillVersion":  "1.1.1",
+    "frameworkVersion":  "2.0.0",
+    "frameworkCompatibility":  "exact",
+    "skillEntryPoint":  "SKILL.md",
+    "compatibilityModel":  "references/framework-model.yaml",
+    "frameworkResources":  "framework",
+    "resourceSources":  [
+                            {
+                                "path":  "framework/engineering-skill/skill/references/s7-styleguide.md",
+                                "sha256":  "8e5fcdd8d9ac59abdd3bc83cd8f8dac599693817e7fba435b6cf0ee63ea42175"
+                            },
+                            {
+                                "path":  "framework/engineering-skill/skill/references/rule-sources.md",
+                                "sha256":  "9ec6e21fab84c285cfe8364f60139a9d9e85f80067d7c0bc9d64762e7337036d"
+                            },
+                            {
+                                "path":  "framework/engineering-skill/skill/references/source-authoring.md",
+                                "sha256":  "6910b4a1b995955ed8277cad5eed1ab710ea372d11e32206c4687d50797d8cd7"
+                            },
+                            {
+                                "path":  "framework/engineering-skill/skill/references/review-and-verification.md",
+                                "sha256":  "53dc83760b46c867ea801e4e2b94282258f90e4e9a36b05d836d3a255a68c5d1"
+                            }
+                        ],
+    "payload":  [
+                    {
+                        "path":  "LICENSE",
+                        "sha256":  "7dfabac1762a5bc4a4323a567a0a727f120142eacbc3de8e39dc5603554f5903"
+                    },
+                    {
+                        "path":  "SKILL.md",
+                        "sha256":  "022428d18eb80677baa4b74a31bdaa741ca4a8ac3327a8643e36680e3190cbac"
+                    },
+                    {
+                        "path":  "agents/openai.yaml",
+                        "sha256":  "cbdf0e01eeb9fa7ae8088791c5f9d16941fbf85b6433ae02a01094796b934a16"
+                    },
+                    {
+                        "path":  "assets/templates/preparation.scl",
+                        "sha256":  "81d6147af81ec120bdebc19d704fb67212d4eac78396475b07711def7e66cb90"
+                    },
+                    {
+                        "path":  "assets/templates/run-control-parallel-slots.scl",
+                        "sha256":  "7acc0c7e481dad87b862e09e44cc7ec62299742b8372201b4bf0fc2fba4033e9"
+                    },
+                    {
+                        "path":  "assets/templates/run-control-parallel.scl",
+                        "sha256":  "d9d0fc7a2c01bb586d8b75982e2965c486ce044fa1c839d3646f59f74c365e89"
+                    },
+                    {
+                        "path":  "assets/templates/run-control-serial.scl",
+                        "sha256":  "49b43aa44a7380562e31835735150ac3a3e259195d51cf3769c67e0b267f1070"
+                    },
+                    {
+                        "path":  "assets/templates/test-case-multi-state-preparation.scl",
+                        "sha256":  "19dc8a5e53f0704f6e32efc0b0d46717de51d50ded1494aec4785e3c2c252f42"
+                    },
+                    {
+                        "path":  "assets/templates/test-case-multi-state.scl",
+                        "sha256":  "7c0d40850e9673797f2accc42adc47974b95d7802097b72a1c5d1134febcd8ec"
+                    },
+                    {
+                        "path":  "assets/templates/test-case-single-state-preparation.scl",
+                        "sha256":  "f3b7cb9e49369ec5222a5a96f1a2764ad04ee035be232c71d0f119c992120bc0"
+                    },
+                    {
+                        "path":  "assets/templates/test-case-single-state.scl",
+                        "sha256":  "a60bb70bb96d26afacbd7e85934c3d16cf656b716d8b4e8ed46f571dcc067901"
+                    },
+                    {
+                        "path":  "assets/templates/test-case-static.scl",
+                        "sha256":  "fd472572b00c440d35d563d02e0d8c868f45800a8c3f37b26874bdc85e01d007"
+                    },
+                    {
+                        "path":  "assets/templates/test-suite-parallel-slots.scl",
+                        "sha256":  "65620b4c487b40af6f12b789ee504f0f26c9f45d5c3e069cd2e93bd4b6dba60f"
+                    },
+                    {
+                        "path":  "assets/templates/test-suite-parallel.scl",
+                        "sha256":  "6310cea68f1b45e051b8c31fb415695fb0427d4cd974a4ac6e6ad136e08e738f"
+                    },
+                    {
+                        "path":  "assets/templates/test-suite-serial.scl",
+                        "sha256":  "57aeca9afe4a1e063161b59f356c94d62058fd2c4fba0f374c27f285bd752406"
+                    },
+                    {
+                        "path":  "framework/contracts/README.md",
+                        "sha256":  "3505f6a6eaa57f2c819e98ae71f83520f9ba9fe7fa384ff4685fce1fb7bbbdcd"
+                    },
+                    {
+                        "path":  "framework/contracts/event-stream-model-contract.md",
+                        "sha256":  "c2f9e7e2df93809323617e1667bfef21701a1b26af678e38bc8aad897f7f3a5c"
+                    },
+                    {
+                        "path":  "framework/contracts/general-framework-contract.md",
+                        "sha256":  "1103881d6de53f57e7c7e7b86b5b7f5c7a838febec33cd453cfdf12d1938d6ca"
+                    },
+                    {
+                        "path":  "framework/contracts/plcsim-advanced-communication-contract.md",
+                        "sha256":  "9c84c16eda52c00d00501e1f0411b6aae96e8d087a26bb449b0b2b2906fcf39b"
+                    },
+                    {
+                        "path":  "framework/contracts/run-control-contract.md",
+                        "sha256":  "40df1042bdba2dd6653825a2a19645ec44b0a614693b976f1fd79a8fc2eddc36"
+                    },
+                    {
+                        "path":  "framework/contracts/test-case-contract.md",
+                        "sha256":  "3a47bdedf6972f5b5f4e7ee401d34d8eee1ef296de5367a4c823f9509d428b4a"
+                    },
+                    {
+                        "path":  "framework/contracts/test-suite-contract.md",
+                        "sha256":  "cb7313eca667960031ae5459a551f83b3126f19efc7a3b998f75b36f420fd4bf"
+                    },
+                    {
+                        "path":  "framework/docs/authoring/ai-assisted-framework-authoring.md",
+                        "sha256":  "2a819ddf49394bcb1e7d399e8862d9d2638ae0eda91865bd980fe1ee889c0950"
+                    },
+                    {
+                        "path":  "framework/docs/authoring/assertions.md",
+                        "sha256":  "f8b8432f121cd8b9d3445468d42db2ff2762acb66e76e3a8c1fc3d309c29584a"
+                    },
+                    {
+                        "path":  "framework/docs/authoring/framework-model.md",
+                        "sha256":  "e8b032a0452cbffa081a603ae8b783bf141b5ac3a4f6967c9801bde09d16986c"
+                    },
+                    {
+                        "path":  "framework/docs/authoring/preparation.md",
+                        "sha256":  "5f46827bc550a18d5cb404d9d9d73cafecfa13ac1e53c4657601868c00c640cb"
+                    },
+                    {
+                        "path":  "framework/docs/authoring/run-control.md",
+                        "sha256":  "f0ac41d7c8e5013047437eae02b0d774087004415cab3d8c67a347911b8cfb3a"
+                    },
+                    {
+                        "path":  "framework/docs/authoring/test-case.md",
+                        "sha256":  "e5ca068d5064cce9fc14f6615028bb7d6c4c3a68ab72dab9066c176c8d82e53b"
+                    },
+                    {
+                        "path":  "framework/docs/authoring/test-suite.md",
+                        "sha256":  "798d23c69b85ded2c18e3996058dc4c45fa5cf52f2a722f3ffb9e61fadc1d190"
+                    },
+                    {
+                        "path":  "framework/docs/framework-architecture.md",
+                        "sha256":  "c2ce884b3bbe8f7ae05db56baba73f8e4d4bcaa36a3669225e939bf8048a1fe4"
+                    },
+                    {
+                        "path":  "framework/docs/s7_unittest_styleguide.md",
+                        "sha256":  "f814da67353bbfc1559b62ef816f54c8bfbdbd449c44e6859185b622847fe754"
+                    },
+                    {
+                        "path":  "framework/engineering-skill/skill/references/review-and-verification.md",
+                        "sha256":  "53dc83760b46c867ea801e4e2b94282258f90e4e9a36b05d836d3a255a68c5d1"
+                    },
+                    {
+                        "path":  "framework/engineering-skill/skill/references/rule-sources.md",
+                        "sha256":  "9ec6e21fab84c285cfe8364f60139a9d9e85f80067d7c0bc9d64762e7337036d"
+                    },
+                    {
+                        "path":  "framework/engineering-skill/skill/references/s7-styleguide.md",
+                        "sha256":  "8e5fcdd8d9ac59abdd3bc83cd8f8dac599693817e7fba435b6cf0ee63ea42175"
+                    },
+                    {
+                        "path":  "framework/engineering-skill/skill/references/source-authoring.md",
+                        "sha256":  "6910b4a1b995955ed8277cad5eed1ab710ea372d11e32206c4687d50797d8cd7"
+                    },
+                    {
+                        "path":  "references/assertion-catalog.yaml",
+                        "sha256":  "2d73c53f330625179ae65b01c533a00d39f7a7bbe8645c4c94f3d9a2d25e8add"
+                    },
+                    {
+                        "path":  "references/block-analysis.md",
+                        "sha256":  "51c1ee88ad0c63e80eca0ae3657e3f1f12bb0099713f4f7e34ce20c401fe1725"
+                    },
+                    {
+                        "path":  "references/block-catalog.yaml",
+                        "sha256":  "e23678e382118bc77cf6a36f489eb4093d68a7f480dbfcbcbae1d5acc7a42334"
+                    },
+                    {
+                        "path":  "references/framework-model.yaml",
+                        "sha256":  "12b9d4310d988f25813515b149dea593c854307e9ff4fb2857820c2b89f23b00"
+                    },
+                    {
+                        "path":  "references/framework-resources.md",
+                        "sha256":  "97191fb0fc7145b74c541b98a43c02d8c2bd1055e74a4f72d21c8fc24dd0f39b"
+                    },
+                    {
+                        "path":  "references/s7unittest.md",
+                        "sha256":  "2271140edff3feb4b7c480b8a3b3b82c9ef27c372cec93c9443f811debd9d80e"
+                    },
+                    {
+                        "path":  "references/schemas/assertion-catalog.schema.json",
+                        "sha256":  "d0e9eb27b1bbe9a720f2d88478fed39b565704342a876ae30226acf3b6113dbc"
+                    },
+                    {
+                        "path":  "references/schemas/block-catalog.schema.json",
+                        "sha256":  "1925f1bf1d89a33f7aaf2b4ca5b86d6fa850484806c576d55aaf26c56dcdd91c"
+                    },
+                    {
+                        "path":  "references/schemas/framework-model.schema.json",
+                        "sha256":  "843402ce1213980a5890d8f9b0ddb4abdd5ed14032f6ea8334ec532a83dd4243"
+                    },
+                    {
+                        "path":  "references/schemas/validation-checklist.schema.json",
+                        "sha256":  "fbd6d8a4b2577e6355f417b8508b8cc8b1dbd67d201c6709886ff307d7ef01b9"
+                    },
+                    {
+                        "path":  "references/structural-validation-handoff.md",
+                        "sha256":  "e3d8565876758ec0bd805aaa81ff456c3e934b39c829049cf4f28843d5efe038"
+                    },
+                    {
+                        "path":  "references/validation-checklist.yaml",
+                        "sha256":  "541fcf4117077d1883bc5e49771f1e850f94be349d91905ccc9a45cad7dd30d6"
+                    }
+                ],
+    "distribution":  "public"
+}

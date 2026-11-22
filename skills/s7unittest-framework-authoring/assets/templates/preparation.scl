@@ -1,0 +1,74 @@
+FUNCTION_BLOCK "Preparation_{{TARGET_CONDITION}}"
+TITLE = Preparation_{{TARGET_CONDITION}}
+{ S7_Optimized_Access := 'TRUE' ; Published := 'FALSE' }
+NAME : '{{BLOCK_UUID}}'
+// Reusable Preparation that drives one owned resource toward a configured target condition.
+   VAR_INPUT
+      "Enable" : Bool;   // TRUE while the owning Test Case is in Preparing.
+      {{DECLARE_PREPARATION_INPUTS}}
+   END_VAR
+
+   VAR_OUTPUT
+      "Status" : "UDT_UnitTestPreparationStatus";   // Preparation status returned to the owning Test Case.
+   END_VAR
+
+   VAR_IN_OUT
+      {{DECLARE_OWNED_RESOURCE_INTERFACES}}
+   END_VAR
+
+   VAR
+      {{DECLARE_PREPARATION_STATE}}
+   END_VAR
+
+   VAR_TEMP
+      "ReadyToPrepare" : Bool;   // TRUE when Preparation can accept active execution.
+      "TargetReached" : Bool;   // TRUE when the required target condition is reached.
+      "LocalError" : Bool;   // TRUE when Preparation cannot complete correctly.
+   END_VAR
+
+BEGIN
+	REGION Evaluate resource
+	    #ReadyToPrepare := {{READY_TO_PREPARE_CONDITION}};
+	    #TargetReached := {{TARGET_CONDITION_REACHED}};
+	    #LocalError := {{PREPARATION_ERROR_CONDITION}};
+	END_REGION
+
+	REGION Default status
+	    #Status.State := "UnitTest.State.Idle";
+	    #Status.ExecutionStatus := "UnitTest.ExecutionStatus.Idle";
+	    #Status.Ready := #ReadyToPrepare;
+	    #Status.Running := FALSE;
+	    #Status.Completed := FALSE;
+	    #Status.Error := FALSE;
+	END_REGION
+
+	REGION Disabled
+	    IF NOT #Enable THEN
+	        // Clear Preparation-local progress without writing the resource.
+	        {{RESET_PREPARATION_PROGRESS}}
+	    END_IF;
+	END_REGION
+
+	REGION Status and active preparation
+	    IF #LocalError THEN
+	        #Status.State := "UnitTest.State.Error";
+	        #Status.ExecutionStatus := "UnitTest.ExecutionStatus.Error";
+	        #Status.Ready := FALSE;
+	        #Status.Error := TRUE;
+	    ELSIF #TargetReached THEN
+	        // Completed is the current target-condition projection, not a latched result.
+	        #Status.State := "UnitTest.State.Completed";
+	        #Status.ExecutionStatus := "UnitTest.ExecutionStatus.Completed";
+	        #Status.Ready := TRUE;
+	        #Status.Completed := TRUE;
+	    ELSIF #Enable AND #ReadyToPrepare THEN
+	        // Handle every normal resource state and drive only while enabled.
+	        {{DRIVE_RESOURCE_TOWARD_TARGET}}
+
+	        #Status.State := "UnitTest.State.Running";
+	        #Status.ExecutionStatus := "UnitTest.ExecutionStatus.Running";
+	        #Status.Ready := FALSE;
+	        #Status.Running := TRUE;
+	    END_IF;
+	END_REGION
+END_FUNCTION_BLOCK

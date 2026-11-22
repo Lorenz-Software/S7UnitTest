@@ -1,0 +1,249 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://s7unittest.local/schemas/block-catalog.schema.json",
+  "title": "S7 UnitTest public block catalog",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "skillVersion",
+    "frameworkVersion",
+    "contractVersions",
+    "blocks",
+    "internalBlocks"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "$ref": "#/$defs/version"
+    },
+    "skillVersion": {
+      "$ref": "#/$defs/version"
+    },
+    "frameworkVersion": {
+      "$ref": "#/$defs/version"
+    },
+    "contractVersions": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "$ref": "#/$defs/version"
+      }
+    },
+    "blocks": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/block"
+      }
+    },
+    "integrationExamples": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/integrationExample"
+      }
+    },
+    "internalBlocks": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/internalBlock"
+      }
+    }
+  },
+  "$defs": {
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "requirementId": {
+      "type": "string",
+      "pattern": "^[A-Z]+-[0-9]{3}$"
+    },
+    "integrationExample": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "blockName",
+        "purpose"
+      ],
+      "properties": {
+        "blockName": {
+          "type": "string",
+          "minLength": 1
+        },
+        "purpose": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "internalBlock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "blockName",
+        "classification",
+        "reason"
+      ],
+      "properties": {
+        "blockName": {
+          "type": "string",
+          "minLength": 1
+        },
+        "classification": {
+          "enum": [
+            "low-level-logging",
+            "semantic-event-internal",
+            "orchestrator-internal",
+            "buffer-internal",
+            "result-internal",
+            "framework-utility-internal",
+            "assertion-internal",
+            "framework-self-test"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "parameter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "section",
+        "dataType",
+        "purpose"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "section": {
+          "enum": [
+            "input",
+            "output",
+            "in-out",
+            "return"
+          ]
+        },
+        "dataType": {
+          "type": "string",
+          "minLength": 1
+        },
+        "purpose": {
+          "type": "string",
+          "minLength": 1
+        },
+        "defaultValue": {
+          "type": [
+            "string",
+            "number",
+            "integer",
+            "boolean",
+            "null"
+          ]
+        },
+        "required": {
+          "type": "boolean"
+        }
+      }
+    },
+    "block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "blockName",
+        "blockType",
+        "category",
+        "levels",
+        "support",
+        "purpose",
+        "interface"
+      ],
+      "properties": {
+        "blockName": {
+          "type": "string",
+          "minLength": 1
+        },
+        "blockType": {
+          "enum": [
+            "FB",
+            "FC"
+          ]
+        },
+        "category": {
+          "enum": [
+            "sequencer",
+            "orchestrator",
+            "entry-point",
+            "command",
+            "monitoring",
+            "lifecycle-signals",
+            "configuration",
+            "status",
+            "result",
+            "aggregation",
+            "event",
+            "logging",
+            "utility",
+            "preparation",
+            "test-support"
+          ]
+        },
+        "levels": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "run-control",
+              "test-suite",
+              "test-case",
+              "preparation"
+            ]
+          }
+        },
+        "support": {
+          "enum": [
+            "preferred",
+            "optional",
+            "required-by-pattern"
+          ]
+        },
+        "purpose": {
+          "type": "string",
+          "minLength": 1
+        },
+        "useWhen": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "constraints": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "interface": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/parameter"
+          }
+        },
+        "contractRequirements": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/requirementId"
+          }
+        }
+      }
+    }
+  }
+}

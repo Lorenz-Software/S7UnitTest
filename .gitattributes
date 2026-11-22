@@ -12,4 +12,10 @@
 .gitignore text eol=crlf
 .gitattributes text eol=crlf
 
-# Add Git LFS rules only for explicitly agreed product paths.
+# Preserve the standalone skill's exact payload bytes for its package manifest.
+skills/s7unittest-framework-authoring/** -text !eol whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+# Keep the packaged templates' existing final blank lines without repackaging.
+skills/s7unittest-framework-authoring/assets/templates/*.scl whitespace=blank-at-eol,space-before-tab,cr-at-eol,-blank-at-eof
+
+# The archived TIA project is the only agreed Git LFS product path.
+Project/S7_UnitTest.zap21 filter=lfs diff=lfs merge=lfs -text

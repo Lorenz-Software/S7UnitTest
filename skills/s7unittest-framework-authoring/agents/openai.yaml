@@ -1,0 +1,4 @@
+interface:
+  display_name: "S7 UnitTest Framework Authoring"
+  short_description: "Derive useful tests and author S7 UnitTests"
+  default_prompt: "Use $s7unittest-framework-authoring to derive a behavioral test plan for this S7 block or implement my already-agreed test intent."

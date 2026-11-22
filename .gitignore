@@ -5,3 +5,10 @@
 /artifacts/
 /.project-workflow/
 /.codex/
+/.playwright-mcp/
+
+# Distributed packages are release assets; their unpacked source stays in Git.
+/inventory.json
+/lib/UnitTest.zal21
+/help/s7-unittest-api-*.zip
+/skills/s7unittest-framework-authoring-*.zip

@@ -1,0 +1,878 @@
+schemaVersion: 1.0.0
+skillVersion: 1.1.1
+frameworkVersion: 2.0.0
+contractVersions:
+  general-framework-contract: 1.0.0
+  run-control-contract: 1.0.0
+  test-suite-contract: 1.0.0
+  test-case-contract: 1.0.0
+  event-stream-model-contract: 1.0.0
+
+levels:
+  - id: run-control
+    purpose: Own one complete UnitTest run and bind the project-specific Test Suites.
+    parent: null
+    children:
+      - test-suite
+    owns:
+      - Run Control lifecycle and commands
+      - project-specific Test Suite configuration and binding
+      - final Run Control result and Test Suite aggregation
+      - event-buffer request processing
+    publishes:
+      - Run Control status
+      - Run Control lifecycle events
+      - final Run Control Result and Aggregation events
+    contractRequirements:
+      - RCC-011
+      - RCC-014
+      - RCC-015
+      - RCC-017
+
+  - id: test-suite
+    purpose: Own one Suite lifecycle and coordinate its configured Test Cases.
+    parent: run-control
+    children:
+      - test-case
+    owns:
+      - Test Suite lifecycle and commands
+      - project-specific Test Case configuration and binding
+      - final Test Suite result and Test Case aggregation
+    publishes:
+      - Test Suite status
+      - Test Suite lifecycle events
+      - final Test Suite Result and Aggregation events
+    contractRequirements:
+      - TSC-007
+      - TSC-012
+      - TSC-013
+      - TSC-017
+      - TSC-019
+
+  - id: test-case
+    purpose: Own one executable test scenario, its Preparation, Assertions, and final outcome.
+    parent: test-suite
+    children:
+      - preparation
+      - assertion
+    owns:
+      - Test Case lifecycle and commands
+      - Preparation invocation and timeout monitoring
+      - resource stimulus during active test states
+      - Assertion invocation and result aggregation
+      - final Test Case Result and Aggregation events
+    publishes:
+      - Test Case status
+      - Test Case lifecycle events
+      - final Test Case Result and Aggregation events
+    contractRequirements:
+      - TCC-011
+      - TCC-021
+      - TCC-039
+      - TCC-040
+
+  - id: preparation
+    purpose: Establish the resource target condition requested by its owning Test Case.
+    parent: test-case
+    children: []
+    owns:
+      - resource stimulus while actively preparing
+      - Preparation-local execution behavior
+    publishes:
+      - UDT_UnitTestPreparationStatus through the block interface
+    contractRequirements:
+      - TCC-009
+      - TCC-010
+      - TCC-030
+      - TCC-031
+      - TCC-032
+
+  - id: assertion
+    purpose: Evaluate one defined condition and retain its result until explicit reset.
+    parent: test-case
+    children: []
+    owns:
+      - condition evaluation and observation state
+      - stable Assertion result
+      - Assertion Failed and Error finding events
+    publishes:
+      - Assertion Result through the block interface
+      - Assertion-owned finding events
+    contractRequirements:
+      - TCC-013
+      - TCC-015
+      - TCC-020
+      - TCC-023
+      - TCC-024
+      - TCC-025
+
+executionPatterns:
+  - id: run-control-sequenced
+    level: run-control
+    support: preferred
+    purpose: Use the framework Sequencer for the Run Control lifecycle and a Suite Orchestrator for subordinate execution.
+    frameworkBlocks:
+      - UnitTestRunControlSequencer
+      - UnitTestSuiteOrchestrator_Serial
+      - UnitTestSuiteOrchestrator_Parallel
+      - UnitTestSuiteOrchestrator_ParallelSlots
+    authorResponsibilities:
+      - configure and bind concrete Test Suites
+      - derive lifecycle signals before helper calls
+      - retain initialized paired Orchestrator state/result for the Sequencer before the later helper call refreshes them; keep raw child lifecycle signals independent
+      - combine helper and subordinate results before final publication, aggregate functional child Failed at the owner and retain the published result until Reset
+      - publish status and finalization events
+    contractRequirements:
+      - RCC-011
+      - RCC-012
+      - RCC-017
+      - RCC-018
+      - RCC-019
+      - RCC-020
+      - RCC-021
+      - RCC-023
+      - RCC-024
+      - RCC-025
+      - RCC-026
+
+  - id: run-control-direct
+    level: run-control
+    support: supported
+    purpose: Implement the Run Control lifecycle directly when the provided helpers cannot represent the required execution model.
+    frameworkBlocks: []
+    authorResponsibilities:
+      - implement all Run Control lifecycle, command, signal, monitoring, result, status, and event behavior
+      - bind and execute concrete Test Suites
+      - bound subordinate Suite reset dispatch against available event-buffer capacity
+    contractRequirements:
+      - RCC-014
+      - RCC-015
+      - RCC-016
+      - RCC-018
+      - RCC-020
+      - RCC-021
+      - RCC-022
+
+  - id: test-suite-sequenced-and-orchestrated
+    level: test-suite
+    support: preferred
+    purpose: Use the Suite Sequencer for owner lifecycle and one Test Case Orchestrator for subordinate execution.
+    frameworkBlocks:
+      - UnitTestSuiteSequencer
+      - UnitTestCaseOrchestrator_Serial
+      - UnitTestCaseOrchestrator_Parallel
+      - UnitTestCaseOrchestrator_ParallelSlots
+    authorResponsibilities:
+      - configure and bind concrete Test Cases
+      - derive lifecycle signals before helper calls
+      - retain initialized paired Orchestrator state/result for the Sequencer before the later helper call refreshes them; keep raw child lifecycle signals independent
+      - combine Sequencer, Orchestrator, and Test Case results before final publication, aggregate functional child Failed at the owner and retain the published result until Reset
+      - publish status and finalization events
+      - select serial, parallel, or parallel-slots from execution and resource requirements rather than EventBuffer sizing
+      - validate slot assignments and exclusive-resource constraints for parallel-slots execution
+      - rely on the selected Test Case Orchestrator for global EventBuffer reservation and capacity-gated dispatch
+    contractRequirements:
+      - TSC-018
+      - TSC-019
+      - TSC-022
+      - TSC-023
+      - TSC-024
+      - TSC-025
+      - TSC-026
+      - TSC-029
+      - TSC-030
+      - TSC-031
+      - TSC-032
+      - TSC-034
+      - TSC-035
+      - TSC-045
+      - TSC-046
+      - TSC-047
+      - TSC-048
+
+  - id: test-suite-direct
+    level: test-suite
+    support: supported
+    purpose: Implement Suite lifecycle and Test Case execution directly when the provided helpers do not fit.
+    frameworkBlocks: []
+    authorResponsibilities:
+      - implement all Suite lifecycle, command, signal, monitoring, result, status, and event behavior
+      - configure, bind, and execute concrete Test Cases
+      - bound subordinate Test Case reset dispatch against available event-buffer capacity
+      - implement equivalent normal-execution global reservation and capacity-gating behavior
+    contractRequirements:
+      - TSC-018
+      - TSC-019
+      - TSC-023
+      - TSC-025
+      - TSC-026
+      - TSC-027
+      - TSC-029
+      - TSC-030
+      - TSC-032
+      - TSC-033
+      - TSC-036
+
+  - id: test-case-single-test-state
+    level: test-case
+    support: preferred
+    purpose: Use the single-test-state Sequencer for a Test Case with one active test state.
+    frameworkBlocks:
+      - UnitTestCaseSequencer
+    authorResponsibilities:
+      - call Preparation after the Sequencer
+      - apply stimulus only while the Test Case owns the resource
+      - call Assertions and aggregate their results and counters
+      - publish status and finalization events
+    contractRequirements:
+      - TCC-011
+      - TCC-021
+      - TCC-038
+
+  - id: test-case-multiple-test-states
+    level: test-case
+    support: preferred
+    purpose: Use the multi-test-state Sequencer for a sequential Test Case with multiple active test states.
+    frameworkBlocks:
+      - UnitTestCaseSequencer_MultiTestState
+    authorResponsibilities:
+      - provide the completion condition for each test state
+      - call Preparation, stimulus logic, and Assertions for the published state
+      - aggregate Assertion results and counters
+      - publish status and finalization events
+    contractRequirements:
+      - TCC-011
+      - TCC-021
+      - TCC-038
+
+  - id: test-case-direct
+    level: test-case
+    support: supported
+    purpose: Implement the Test Case lifecycle directly when the provided Sequencers do not fit.
+    frameworkBlocks: []
+    authorResponsibilities:
+      - implement all Test Case lifecycle, command, signal, monitoring, result, status, and event behavior
+      - retain Test Case ownership of Preparation and Assertions
+    contractRequirements:
+      - TCC-022
+      - TCC-038
+      - TCC-039
+      - TCC-040
+      - TCC-041
+
+  - id: preparation-interface
+    level: preparation
+    support: preferred
+    purpose: Implement Preparation as an Enable-controlled block that returns UDT_UnitTestPreparationStatus.
+    frameworkBlocks: []
+    authorResponsibilities:
+      - select a generally reusable, resource-family, or dedicated reuse model before defining the interface
+      - pass variable targets and observed values as inputs and writable resource data as in-out parameters
+      - preserve DUT and resource UDTs without UnitTest-specific modifications
+      - drive the target condition only while enabled and active
+      - handle all normal resource states and reserve Error for exceptional states that cannot converge to the target
+      - publish Ready, Completed, and Error as current resource-condition projections even while disabled
+      - publish Running only while enabled and actively driving the resource
+      - stop active resource manipulation and clear local progress when disabled without cleanup writes
+      - leave DUT invocation, timeout monitoring, Assertions, events, and final result ownership with the Test Case
+    contractRequirements:
+      - TCC-010
+      - TCC-030
+      - TCC-034
+
+  - id: assertion-interface
+    level: assertion
+    support: preferred
+    purpose: Select and call a framework Assertion through its block interface.
+    frameworkBlocks: []
+    authorResponsibilities:
+      - provide Reset, Enable, hierarchical Name, ResourceName, and owning Test Case State
+      - aggregate Result and counters in the owning Test Case
+    contractRequirements:
+      - TCC-013
+      - TCC-014
+      - TCC-016
+      - TCC-021
+
+lifecycleStates:
+  - name: UnitTest.State.Uninitialized
+    role: initial
+    stableFinal: false
+    purpose: Passive non-executable startup state that can only be left through reset.
+    executionStatus: UnitTest.ExecutionStatus.NotReady
+
+  - name: UnitTest.State.Reset
+    role: reset
+    stableFinal: false
+    purpose: Reset owner-local state and propagate reset to subordinate owners.
+    executionStatus: UnitTest.ExecutionStatus.Reset
+
+  - name: UnitTest.State.Idle
+    role: idle
+    stableFinal: false
+    purpose: Executable base state in which a valid start command may be accepted.
+    executionStatus: UnitTest.ExecutionStatus.Idle
+
+  - name: UnitTest.State.Starting
+    role: starting
+    stableFinal: false
+    purpose: Dispatch the concrete start after owner and subordinate readiness have been verified.
+    executionStatus: UnitTest.ExecutionStatus.Starting
+
+  - name: UnitTest.State.Preparing
+    role: preparing
+    stableFinal: false
+    purpose: Let a Test Case establish its required resource target condition.
+    executionStatus: UnitTest.ExecutionStatus.Running
+
+  - name: UnitTest.State.Running
+    role: testing
+    stableFinal: false
+    purpose: Execute active Suite or Test Case behavior; additional defined test-state values may extend this range.
+    executionStatus: UnitTest.ExecutionStatus.Running
+
+  - name: UnitTest.State.Completing
+    role: finalizing
+    stableFinal: false
+    purpose: Publish the final owner Result and Aggregation before lifecycle completion.
+    executionStatus: UnitTest.ExecutionStatus.Completing
+
+  - name: UnitTest.State.Completed
+    role: completed
+    stableFinal: true
+    purpose: Only stable final lifecycle state for new owner logic.
+    executionStatus: UnitTest.ExecutionStatus.Completed
+
+  - name: UnitTest.State.Aborting
+    role: aborting
+    stableFinal: false
+    purpose: Handle an explicit external abort and terminate with UnitTest.Result.Abort.
+    executionStatus: UnitTest.ExecutionStatus.Aborting
+
+  - name: UnitTest.State.AbortingFromError
+    role: error-aborting
+    stableFinal: false
+    purpose: Terminate after an internal, subordinate, timeout, or framework error.
+    executionStatus: UnitTest.ExecutionStatus.Aborting
+
+  - name: UnitTest.State.Error
+    role: legacy
+    stableFinal: false
+    purpose: Legacy state that new owner logic must not use as a stable final state.
+    executionStatus: UnitTest.ExecutionStatus.Error
+
+  - name: UnitTest.State.Aborted
+    role: legacy
+    stableFinal: false
+    purpose: Legacy state that new owner logic must not use as a stable final state.
+    executionStatus: UnitTest.ExecutionStatus.Aborted
+
+results:
+  - name: UnitTest.Result.NotEvaluated
+    classification: unevaluated
+    purpose: Default and reset result before a valid evaluation exists.
+    mayEscalateTo:
+      - UnitTest.Result.Passed
+      - UnitTest.Result.Failed
+      - UnitTest.Result.Abort
+      - UnitTest.Result.Error
+
+  - name: UnitTest.Result.Passed
+    classification: success
+    purpose: The evaluated condition or owner run passed.
+    mayEscalateTo:
+      - UnitTest.Result.Failed
+      - UnitTest.Result.Abort
+      - UnitTest.Result.Error
+
+  - name: UnitTest.Result.Failed
+    classification: test-failure
+    purpose: At least one evaluated test condition failed without a framework execution error.
+    mayEscalateTo:
+      - UnitTest.Result.Abort
+      - UnitTest.Result.Error
+
+  - name: UnitTest.Result.Abort
+    classification: explicit-abort
+    purpose: The owner lifecycle was explicitly aborted; helper Abort is only valid on an owner abort path.
+    mayEscalateTo:
+      - UnitTest.Result.Error
+
+  - name: UnitTest.Result.Error
+    classification: error
+    purpose: Configuration, execution, timeout, subordinate, or framework failure invalidated normal evaluation.
+    mayEscalateTo: []
+
+concepts:
+  - id: semantic-owner-hierarchy
+    category: ownership
+    summary: Full Owners retain semantic ownership even when generic helpers emit lifecycle events on their behalf.
+    appliesTo:
+      - run-control
+      - test-suite
+      - test-case
+    rules:
+      - Run Control owns Test Suite binding, Test Suite owns Test Case binding, and Test Case owns Preparation and Assertions.
+      - Sequencers encapsulate owner lifecycle mechanics; Orchestrators encapsulate subordinate execution mechanics.
+      - Orchestrator diagnostics are not independent Full Owner lifecycle evidence.
+    contractRequirements:
+      - GFC-032
+      - GFC-042
+      - RCC-017
+      - TSC-022
+
+  - id: hierarchical-names
+    category: naming
+    summary: Event names encode the Run Control, Suite, Test Case, and Assertion hierarchy.
+    appliesTo:
+      - run-control
+      - test-suite
+      - test-case
+      - assertion
+    rules:
+      - Run Control uses one local segment.
+      - Suite uses <runControlName>.<suiteName>.
+      - Test Case uses <runControlName>.<suiteName>.<testCaseName>.
+      - Assertion appends a non-empty assertion-local name; everything after the third dot belongs to that local name.
+      - Full Owner segments use only ASCII letters, digits, underscore, or hyphen and contain no whitespace.
+      - Orchestrator diagnostics use <parentName>.Orchestrator.
+    contractRequirements:
+      - CC-071
+      - CC-072
+      - CC-073
+      - CC-075
+      - CC-076
+      - CC-077
+      - CC-078
+
+  - id: configuration-and-data-ownership
+    category: configuration
+    summary: Project code configures concrete instances while framework helpers consume explicit Config, Command, Lifecycle Signal, and Status structures.
+    appliesTo:
+      - run-control
+      - test-suite
+      - test-case
+      - preparation
+    rules:
+      - Detect configuration errors in explicit local variables before state-machine dispatch.
+      - A configuration error prevents Ready and normal start.
+      - Control and status fields are actively published by their semantic owner.
+      - Preparation uses its block interface and status UDT rather than a separate control UDT.
+    contractRequirements:
+      - GFC-005
+      - RCC-006
+      - TSC-006
+      - TCC-006
+      - TCC-030
+
+  - id: command-processing
+    category: commands
+    summary: Start, Abort, and Reset are positive-edge commands with deterministic priority and cleanup.
+    appliesTo:
+      - run-control
+      - test-suite
+      - test-case
+    rules:
+      - Reset has priority over other command processing.
+      - Abort has priority over Start.
+      - Start is accepted only from Idle while Ready is true.
+      - Emit trigger events before state-machine processing.
+      - Reset owned one-shot command bits after processing and memorize command history last.
+    contractRequirements:
+      - RCC-008
+      - RCC-009
+      - TSC-008
+      - TSC-009
+      - TCC-017
+      - TCC-018
+
+  - id: lifecycle-core
+    category: lifecycle
+    summary: All new Full Owner lifecycles initialize through Reset and terminate only in Completed.
+    appliesTo:
+      - run-control
+      - test-suite
+      - test-case
+    rules:
+      - Uninitialized is passive and requires explicit reset handling.
+      - Normal initialization follows Uninitialized to Reset to Idle.
+      - Normal execution follows Idle through Starting and active states to Completing and Completed.
+      - Explicit abort uses Aborting and UnitTest.Result.Abort.
+      - Error termination uses AbortingFromError or controlled finalization and UnitTest.Result.Error.
+      - Test Case Sequencers leave Aborting and AbortingFromError after one cycle; Test Case logic must stop execution immediately and defer resource recovery to Reset.
+      - An unhandled state is a framework error and finalizes through Completing.
+    contractRequirements:
+      - GFC-009
+      - GFC-010
+      - GFC-022
+      - GFC-025
+      - GFC-027
+      - GFC-028
+
+  - id: lifecycle-signals
+    category: signals
+    summary: Ready, Completed, AbortFinished, and ResetFinished drive generic lifecycle helpers.
+    appliesTo:
+      - run-control
+      - test-suite
+      - test-case
+      - preparation
+    rules:
+      - Derive lifecycle signals before calling the Sequencer or Orchestrator that consumes them.
+      - Ready means the owner and all required subordinate conditions permit a concrete start.
+      - Verify subordinate Ready again immediately before each concrete start dispatch.
+      - Publish consolidated status only after subordinate calls and result aggregation.
+    contractRequirements:
+      - GFC-016
+      - GFC-026
+      - TCC-031
+      - TCC-032
+      - TCC-036
+
+  - id: capacity-aware-reset
+    category: lifecycle
+    summary: Subordinate reset dispatch is bounded by available event-buffer capacity.
+    appliesTo:
+      - run-control
+      - test-suite
+    rules:
+      - Generic Suite Orchestrators reset Suites sequentially and retain UnitTest.EventBuffer.ResetHeadroom plus four reserved entries before starting a required Suite reset.
+      - Generic Test Case Orchestrators use capacity-bounded reset batches and retain UnitTest.EventBuffer.ResetHeadroom plus three fixed entries and three entries per active or newly started Test Case reset.
+      - A subordinate owner in UnitTest.State.Idle with Ready equal to TRUE needs no additional reset command.
+      - Capacity waiting remains part of Reset and counts toward the configured ResetTimeout.
+      - Direct owner implementations without a generic Orchestrator shall provide equivalent capacity-bounded reset behavior.
+    contractRequirements:
+      - RCC-018
+      - RCC-019
+      - RCC-020
+      - RCC-021
+      - RCC-022
+      - TSC-023
+      - TSC-024
+      - TSC-025
+      - TSC-026
+      - TSC-027
+
+  - id: capacity-aware-test-case-execution
+    category: lifecycle
+    summary: Test Case execution is admitted against producer-owned global EventBuffer reservations.
+    appliesTo:
+      - test-suite
+      - test-case
+    rules:
+      - Select Serial, Parallel, or ParallelSlots from execution order and resource ownership; EventBuffer sizing does not define another Orchestrator variant.
+      - Generic Test Case Orchestrators calculate and manage global EventBuffer reservations internally and start at most one new Test Case per Orchestrator call.
+      - Test Cases publish PreparationStateCount, TestStateCount, and AssertionCountTotal cyclically; the values describe the longest finite executable path, are valid at Idle AND Ready, and remain stable through Completed.
+      - PreparationStateCount is zero when no Preparation state exists, and TestStateCount is greater than zero.
+      - A direct Test Suite implementation without a generic Test Case Orchestrator shall provide equivalent global reservation, capacity-gating, pending-Start, release, Abort-retention, and Reset-handover behavior.
+      - Do not introduce or reference an Adaptive Test Case Orchestrator.
+    contractRequirements:
+      - TCC-045
+      - TCC-046
+      - TCC-047
+      - TCC-048
+      - TCC-049
+      - TCC-050
+      - TCC-051
+      - TSC-029
+      - TSC-030
+      - TSC-031
+      - TSC-032
+      - TSC-033
+      - TSC-034
+      - TSC-035
+      - TSC-036
+      - TSC-037
+      - TSC-038
+      - TSC-039
+      - TSC-040
+      - TSC-041
+      - TSC-042
+      - TSC-043
+      - TSC-044
+
+  - id: runtime-measurement
+    category: runtime
+    summary: Runtime represents active owner execution time; phase runtimes monitor only their corresponding phases.
+    appliesTo:
+      - run-control
+      - test-suite
+      - test-case
+      - preparation
+    rules:
+      - Count owner Runtime from normal departure from Idle until the final active running state is left.
+      - Count PreparationRuntime only during Preparing.
+      - Count TestStateRuntime only for the current active Test Case test state and reset it when that state changes.
+      - Publish runtime through the owner status update path.
+    contractRequirements:
+      - GFC-004
+
+  - id: timeout-monitoring
+    category: timeout
+    summary: Timeouts are positive and monitor the runtime of the phase or subordinate owner they supervise.
+    appliesTo:
+      - run-control
+      - test-suite
+      - test-case
+      - preparation
+    rules:
+      - Zero or negative configured timeouts are configuration errors.
+      - Test Case owns Preparation timeout monitoring.
+      - Test Suite detects subordinate Test Case reset and abort timeouts and emits framework diagnostics.
+      - Timeout helpers evaluate runtime directly without hidden execution-status gating.
+      - Derive timeout bounds bottom-up from the children and resources invoked on the supervised path.
+      - Serial parents account for the sum of relevant child paths and parallel parents for the longest child path; parallel-slots parents sum the longest child path in each sequentially executed slot.
+      - Normal, Reset, and Abort paths are estimated separately and include lifecycle, dispatch, PLC-cycle, and applicable capacity-waiting overhead.
+      - Owned implementation code and supplied dependency evidence may establish deterministic bounds; dynamic or inaccessible behavior requires configured bounds or explicit user input.
+      - A parent timeout shall not preempt a valid child path or suppress the child's own timeout handling.
+    contractRequirements:
+      - RCC-010
+      - TSC-010
+      - TSC-020
+      - TSC-021
+      - TCC-011
+      - TCC-019
+      - TCC-022
+
+  - id: stable-results
+    category: result
+    summary: Results remain stable until reset and may only progress to an allowed outcome.
+    appliesTo:
+      - run-control
+      - test-suite
+      - test-case
+      - assertion
+    rules:
+      - Reset sets Result to UnitTest.Result.NotEvaluated.
+      - Result must not de-escalate within one run.
+      - Explicit owner abort produces UnitTest.Result.Abort.
+      - Error-driven termination produces UnitTest.Result.Error.
+      - Helper Error always escalates to owner Error.
+      - Helper Abort outside an already selected owner abort path is an owner Error.
+      - Compose owner results from previous stable result, helper results, and subordinate results.
+    contractRequirements:
+      - GFC-011
+      - GFC-012
+      - GFC-023
+      - GFC-024
+      - GFC-025
+      - GFC-031
+
+  - id: finalization-events
+    category: event
+    summary: Every Full Owner run publishes deterministic final evidence before its completion transition.
+    appliesTo:
+      - run-control
+      - test-suite
+      - test-case
+    rules:
+      - Enter Completing before Completed on every finalization path.
+      - Emit exactly one final Result event and one final Aggregation event per controllable owner run.
+      - Emit Result before Aggregation while in Completing.
+      - Run Control remains in Completing for at least its configured CompletionDelay.
+      - Emit the StateTransition to Completed no earlier than the following PLC cycle.
+      - Treat the StateTransition to Completed as the final lifecycle event for that owner.
+      - Diagnostic events never replace required final evidence.
+    contractRequirements:
+      - GFC-029
+      - GFC-030
+      - GFC-033
+      - GFC-034
+      - GFC-035
+      - GFC-036
+      - GFC-037
+      - GFC-041
+
+  - id: event-ownership
+    category: event
+    summary: Event OwnerScope identifies semantic ownership, not necessarily the helper block that emits the event.
+    appliesTo:
+      - run-control
+      - test-suite
+      - test-case
+      - assertion
+    rules:
+      - Sequencer-emitted owner lifecycle events use the represented Full Owner scope and name.
+      - Assertion Failed and Error findings use Assertion scope and the owning Test Case State.
+      - Orchestrator technical diagnostics use their dedicated Orchestrator scope and reserved name.
+      - Trigger events describe command edges and StateTransition events describe state changes only.
+    contractRequirements:
+      - GFC-032
+      - GFC-038
+      - GFC-039
+      - GFC-042
+      - TCC-027
+      - TCC-028
+
+  - id: status-publication
+    category: status
+    summary: Status is a consolidated projection written after owner logic and subordinate calls.
+    appliesTo:
+      - run-control
+      - test-suite
+      - test-case
+      - preparation
+    rules:
+      - Derive ExecutionStatus from State; never treat it as a second state machine.
+      - Preset status fields to safe values before owner-specific mapping.
+      - Publish combined ConfigError, Ready, Result, Runtime, and subordinate aggregation through the status update path.
+      - Status data supports PLC diagnosis and higher-level PLC coordination; it does not replace event evidence.
+    contractRequirements:
+      - GFC-005
+      - GFC-008
+      - GFC-017
+
+  - id: owner-call-order
+    category: call-order
+    summary: Cyclic owners prepare inputs, execute generic helpers and subordinate blocks, then aggregate and publish.
+    appliesTo:
+      - run-control
+      - test-suite
+      - test-case
+    rules:
+      - Read and normalize inputs and defaults before processing.
+      - Derive configuration errors and lifecycle signals before generic helper calls.
+      - Call Sequencer or Orchestrator before subordinate blocks it controls.
+      - Evaluate helper outputs after the call.
+      - Call subordinate instances before result aggregation and status publication.
+      - Emit finalization events after final result and status are available.
+      - Publish outputs before memorizing previous-cycle values and cleaning up owned commands.
+    contractRequirements:
+      - GFC-005
+
+  - id: preparation-resource-ownership
+    category: ownership
+    summary: Preparation and active Test Case states have distinct resource-stimulus responsibilities.
+    appliesTo:
+      - test-case
+      - preparation
+    rules:
+      - During Preparing, the Preparation owns stimulus required to establish the target condition.
+      - During active test states, the Test Case owns stimulus required to exercise tested behavior.
+      - Do not drive test resource stimulus from Idle or other inactive states.
+      - Test Suite configuration must prevent conflicting Test Cases from owning the same resource concurrently.
+    contractRequirements:
+      - TCC-010
+      - TCC-031
+      - TCC-032
+      - TCC-033
+      - TCC-037
+
+  - id: test-case-reuse
+    category: configuration
+    summary: Test Case reuse keeps one stable behavior-oriented scenario independent of concrete bindings where practical.
+    appliesTo:
+      - test-case
+    rules:
+      - Select generally reusable, resource-family, or dedicated reuse before defining the Test Case interface.
+      - Keep test-state sequence, stimulus behavior, checked property, Assertion activation, and result interpretation stable.
+      - Put variable resource and scenario data on the interface and keep invariant scenario facts as constants.
+      - Add TestTime as an input only when observation duration varies by instance; otherwise use a constant or another explicit finish condition.
+      - Avoid mode, test-type, Assertion-selection, and flow-selection parameters that combine unrelated scenarios.
+      - Prefer behavior interfaces that permit the same Test Case to validate different externally called blocks.
+
+  - id: test-case-resource-interface
+    category: ownership
+    summary: Tested-block call ownership and resource interfaces remain explicit and preserve production data models.
+    appliesTo:
+      - test-case
+    rules:
+      - Select an internal or external tested FB or FC call deliberately.
+      - Prefer direct typed parameters, existing production Control or resource UDTs, and existing resource-ID getter/setter patterns in that order.
+      - Use a UnitTest-specific interface UDT only as a justified coherent grouping exception.
+      - Do not modify production DUT, Control, or resource UDTs for UnitTest needs.
+      - Use inputs for read-only data and in-out parameters for writable stimulus or resource data.
+      - Generally reusable and resource-family Test Cases must not bind concrete global resource instances directly.
+      - Give every stateful Test Case use separate instance state, ControlData, and hierarchical identity.
+
+  - id: test-case-refactoring
+    category: configuration
+    summary: Refactoring makes concrete Test Case bindings reusable without changing the represented scenario or lifecycle semantics.
+    appliesTo:
+      - test-case
+    rules:
+      - Capture scenario, lifecycle, Assertion, result, event, and cycle semantics before changing the implementation.
+      - Extract concrete resource bindings and variable scenario parameters while retaining invariant scenario facts.
+      - Select the most reusable target class that does not require mode-selected or flow-selected behavior.
+      - Preserve internal or external tested-block call ownership unless an explicit decision changes it.
+      - Preserve Preparation, Assertion, result-priority, status-publication, and finalization semantics.
+      - Validate the original binding and at least one additional binding with isolated state and identity.
+      - Report any intentional semantic change instead of treating it as reuse-only refactoring.
+
+  - id: test-case-helper-reuse
+    category: ownership
+    summary: Test Cases reuse Preparation and Assertion implementations before introducing specific helper logic.
+    appliesTo:
+      - test-case
+      - preparation
+      - assertion
+    rules:
+      - Reuse an existing Preparation that establishes the required target condition before creating a new Preparation.
+      - Generalize a Preparation only while its single target-condition behavior remains coherent.
+      - Reuse the Preparation FB type but give each stateful Test Case instance its own Preparation instance.
+      - Select framework Assertions before creating project- or TestCase-specific Assertions.
+      - Prefer one specific Assertion over complex inline Test Case evaluation when no framework Assertion fits clearly.
+      - Specific Assertions remain case-by-case exceptions and follow the framework Assertion interface, result, and finding semantics.
+
+  - id: preparation-reuse
+    category: configuration
+    summary: Preparation reuse scope and dependencies keep one target-condition behavior understandable and repeatable.
+    appliesTo:
+      - preparation
+    rules:
+      - Select generally reusable, resource-family, or dedicated reuse before defining the block interface.
+      - Use the most reusable model that retains a clear interface; do not combine unrelated target conditions through mode selection.
+      - Keep variable targets and resource dependencies on the interface and constants only for invariant implementation details.
+      - Do not modify DUT or resource UDTs for UnitTest needs.
+      - Use a dedicated Preparation interface UDT only to group coherent signals at the selected reuse scope.
+      - Generally reusable and resource-family Preparations must not bind concrete global resource instances directly.
+      - Handle every normal resource state and report Error only for exceptional states that cannot reach the target meaningfully.
+      - Treat Completed as the current target-condition projection rather than a latched result from an earlier invocation.
+
+  - id: preparation-refactoring
+    category: configuration
+    summary: Refactoring makes concrete Preparation bindings reusable without changing target-condition or ownership semantics.
+    appliesTo:
+      - preparation
+    rules:
+      - Capture target condition, normal-state coverage, exceptional errors, active stimulus, progress, and status behavior before changing the implementation.
+      - Extract concrete resource bindings and variable target-condition parameters while retaining invariant implementation details.
+      - Select the most reusable target class that does not require target-condition mode selection.
+      - Preserve level-based Enable, disabled status projection, active write ownership, normal-state convergence, and Error meaning.
+      - Do not introduce DUT calls, framework owner data, events, results, or timeout monitoring.
+      - Validate the original binding and at least one additional resource binding with separate Preparation instance state.
+      - Report any intentional semantic change instead of treating it as reuse-only refactoring.
+
+  - id: assertion-evaluation
+    category: result
+    summary: Assertions observe and evaluate through their interfaces and retain valid results until reset.
+    appliesTo:
+      - test-case
+      - assertion
+    rules:
+      - Reset has priority over observation and evaluation controls and clears assertion-local state.
+      - Enable false pauses observation and direct evaluation from observation without clearing the result.
+      - ObserveFirstCycle defaults to true when present and controls whether the first enabled call after Reset or re-enable contributes observed values.
+      - Assertions that require a previous enabled value or signal sample establish a mandatory baseline and do not expose ObserveFirstCycle.
+      - Explicit Evaluate is not gated by Enable or ObserveFirstCycle; Reset still suppresses it.
+      - Sequence Assertions include the current input before explicit evaluation, while Edge-count Assertions evaluate the already accumulated count.
+      - The Test Case passes its own State as Assertion event context.
+      - The Test Case aggregates Assertion results and counters after Assertion calls.
+      - Assertion finding events are not final Test Case Result events.
+    contractRequirements:
+      - TCC-014
+      - TCC-015
+      - TCC-020
+      - TCC-021
+      - TCC-023
+      - TCC-024
+      - TCC-025
+      - TCC-026
+      - TCC-028
+      - TCC-052
+      - TCC-053
+      - TCC-054
+      - TCC-055
+      - TCC-056
+      - TCC-057
+      - TCC-058
